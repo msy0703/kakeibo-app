@@ -985,6 +985,112 @@
   .modal-btn.primary:hover {
     background: #36b5e8;
   }
+
+  /* Chart Mode Button */
+  .chart-mode-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .chart-mode-btn.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-blue);
+  }
+
+  .chart-mode-btn:hover {
+    color: var(--text-primary);
+  }
+
+  /* PL Table */
+  .pl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin: 8px 0;
+  }
+
+  .pl-table th, .pl-table td {
+    border: 1px solid var(--border);
+    padding: 6px 4px;
+    text-align: right;
+  }
+
+  .pl-table th {
+    background: var(--bg3);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .pl-table td {
+    color: var(--text-secondary);
+  }
+
+  .pl-table .cat-col {
+    text-align: left;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .pl-table .total-row td {
+    background: var(--bg3);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .pl-table .sum-cell {
+    background: var(--bg3);
+    font-weight: 600;
+    color: var(--accent-blue);
+  }
+
+  /* Summary Cards */
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .summary-card {
+    background: var(--bg3);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .summary-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .summary-value {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Table wrapper */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin: 8px 0;
+  }
+
+  .pl-table {
+    width: 100% !important;
+    min-width: 600px;
+  }
 </style>
 </head>
 <body>
@@ -1030,7 +1136,14 @@
     <div id="view-list" class="list-view"></div>
 
     <!-- CHART -->
-    <div id="view-chart" class="chart-view" style="display:none"></div>
+    <div id="view-chart" class="chart-view" style="display:none">
+      <div style="display:flex;gap:8px;padding:0 16px;border-bottom:1px solid var(--border);margin-bottom:12px">
+        <button id="chartModeBtn-month" onclick="switchChartMode('month')" class="chart-mode-btn active">📊 月別</button>
+        <button id="chartModeBtn-year" onclick="switchChartMode('year')" class="chart-mode-btn">📈 年間</button>
+      </div>
+      <div id="chart-month-content" style="display:block"></div>
+      <div id="chart-year-content" style="display:none"></div>
+    </div>
 
     <!-- BUDGET -->
     <div id="view-budget" class="budget-view" style="display:none"></div>
@@ -1354,7 +1467,23 @@ function renderList() {
 }
 
 // ── CHART VIEW ──
+let currentChartMode = 'month';
+
+function switchChartMode(mode) {
+  currentChartMode = mode;
+  ['month', 'year'].forEach(m => {
+    document.getElementById(`chartModeBtn-${m}`).className = `chart-mode-btn ${m===mode ? 'active' : ''}`;
+    document.getElementById(`chart-${m}-content`).style.display = m===mode ? 'block' : 'none';
+  });
+  if (mode === 'month') renderMonthChart();
+  if (mode === 'year') renderYearChart();
+}
+
 function renderChart() {
+  renderMonthChart();
+}
+
+function renderMonthChart() {
   const txns = getMonthTxns();
   const expenses = txns.filter(t=>t.type==='expense');
   const incomes  = txns.filter(t=>t.type==='income');
@@ -1418,7 +1547,206 @@ function renderChart() {
     html += '</div>';
   }
 
-  document.getElementById('view-chart').innerHTML = html;
+  document.getElementById('chart-month-content').innerHTML = html;
+}
+
+// 年間統計
+function renderYearChart() {
+  const yearTxns = state.txns;
+  const expenses = yearTxns.filter(t=>t.type==='expense');
+  const incomes = yearTxns.filter(t=>t.type==='income');
+
+  let html = '';
+
+  // 月別推移グラフ
+  html += `<div class="chart-section"><div class="section-title">📈 月別推移</div>`;
+  html += buildMonthlyTrendChart();
+  html += `</div>`;
+
+  // 年間収支サマリー
+  const yearIncome = incomes.reduce((s,t)=>s+t.amount, 0);
+  const yearExpense = expenses.reduce((s,t)=>s+t.amount, 0);
+  const yearBalance = yearIncome - yearExpense;
+
+  html += `<div class="chart-section">
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="summary-label">年間収入</div>
+        <div class="summary-value" style="color:var(--income)">${fmtYen(yearIncome)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">年間支出</div>
+        <div class="summary-value" style="color:var(--expense)">${fmtYen(yearExpense)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">年間差引</div>
+        <div class="summary-value" style="color:${yearBalance >= 0 ? 'var(--income)' : 'var(--expense)'}">${yearBalance >= 0 ? '+' : ''}${fmtYen(yearBalance)}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // 年間カテゴリ別集計グラフ
+  html += `<div class="chart-section"><div class="section-title">💰 カテゴリ別集計</div>`;
+  html += buildYearCategoryChart();
+  html += `</div>`;
+
+  // P/L書形式の表
+  html += `<div class="chart-section"><div class="section-title">📋 P/L書（月別×カテゴリ）</div>`;
+  html += buildYearPLTable();
+  html += `</div>`;
+
+  document.getElementById('chart-year-content').innerHTML = html;
+}
+
+function getYearTxns() {
+  return state.txns;
+}
+
+function buildMonthlyTrendChart() {
+  const months = [0,1,2,3,4,5,6,7,8,9,10,11];
+  const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const monthData = months.map(m => {
+    const txns = state.txns.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === state.currentYear && d.getMonth() === m;
+    });
+    return {
+      income: txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount, 0),
+      expense: txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount, 0)
+    };
+  });
+
+  const maxVal = Math.max(...monthData.map(d => Math.max(d.income, d.expense)), 1);
+  const h = 120, w = 300;
+  const chartW = w - 40, chartH = h - 20;
+  const barW = chartW / 24; // 2本/月
+
+  let bars = '';
+  monthData.forEach((d, i) => {
+    const incomePct = d.income / maxVal;
+    const expensePct = d.expense / maxVal;
+    const x1 = 20 + i * (chartW / 12) + barW * 0.5;
+    const x2 = x1 + barW * 1.5;
+    const y1 = h - 10 - incomePct * chartH;
+    const y2 = h - 10 - expensePct * chartH;
+
+    bars += `<rect x="${x1}" y="${y1}" width="${barW}" height="${incomePct * chartH}" fill="var(--income)" opacity="0.7"/>`;
+    bars += `<rect x="${x2}" y="${y2}" width="${barW}" height="${expensePct * chartH}" fill="var(--expense)" opacity="0.7"/>`;
+  });
+
+  let result = `<svg width="${w}" height="${h}" style="background:var(--bg3);border-radius:8px;margin:8px 0">
+    ${bars}
+    <text x="10" y="${h-5}" font-size="9" fill="var(--text-muted)">1月</text>
+    <text x="${w-20}" y="${h-5}" font-size="9" fill="var(--text-muted)">12月</text>
+  </svg>`;
+
+  result += `<div style="display:flex;gap:16px;font-size:11px;margin:8px 0">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:12px;height:12px;background:var(--income);border-radius:2px"></div>
+      <span>収入</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:12px;height:12px;background:var(--expense);border-radius:2px"></div>
+      <span>支出</span>
+    </div>
+  </div>`;
+
+  return result;
+}
+
+function buildYearCategoryChart() {
+  const expenses = state.txns.filter(t=>t.type==='expense');
+  const catTotals = {};
+  expenses.forEach(t => { catTotals[t.cat] = (catTotals[t.cat]||0)+t.amount; });
+  const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const total = sorted.reduce((s,[,v])=>s+v, 0);
+
+  let html = '';
+  if (sorted.length) {
+    sorted.forEach(([catId, amt], i) => {
+      const cat = CATEGORIES.expense.find(c=>c.id===catId) || {icon:'📦',name:'その他'};
+      const pct = total ? (amt/total*100) : 0;
+      html += `<div class="category-bar">
+        <div class="cat-name">${cat.icon} ${cat.name}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${CAT_COLORS[i%CAT_COLORS.length]}"></div></div>
+        <div class="cat-amount">${fmtYen(amt)}</div>
+      </div>`;
+    });
+  } else {
+    html = `<div class="empty-state" style="font-size:12px;padding:20px">データなし</div>`;
+  }
+  return html;
+}
+
+function buildYearPLTable() {
+  const months = [0,1,2,3,4,5,6,7,8,9,10,11];
+  const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  // カテゴリ別に月別データを集計
+  const catData = {};
+  CATEGORIES.expense.forEach(cat => {
+    catData[cat.id] = { name: cat.name, icon: cat.icon, months: new Array(12).fill(0) };
+  });
+
+  const expenses = state.txns.filter(t=>t.type==='expense');
+  expenses.forEach(t => {
+    const d = new Date(t.date);
+    if (d.getFullYear() === state.currentYear && catData[t.cat]) {
+      catData[t.cat].months[d.getMonth()] += t.amount;
+    }
+  });
+
+  // テーブル構築
+  let tableHtml = `<table class="pl-table">
+    <thead>
+      <tr>
+        <th style="width:60px">カテゴリ</th>`;
+
+  monthLabels.forEach(m => {
+    tableHtml += `<th style="width:45px;font-size:10px">${m}</th>`;
+  });
+
+  tableHtml += `<th style="width:50px;color:var(--accent-blue)">計</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  // データ行
+  let totalByMonth = new Array(12).fill(0);
+  Object.entries(catData).forEach(([catId, data]) => {
+    const rowTotal = data.months.reduce((s,v)=>s+v, 0);
+    if (rowTotal === 0) return; // 0円のカテゴリは非表示
+
+    tableHtml += `<tr>
+      <td class="cat-col">${data.icon} ${data.name}</td>`;
+
+    data.months.forEach((amt, i) => {
+      tableHtml += `<td>${amt ? fmtYen(amt).slice(1) : '-'}</td>`;
+      totalByMonth[i] += amt;
+    });
+
+    tableHtml += `<td class="sum-cell">${fmtYen(rowTotal).slice(1)}</td>
+    </tr>`;
+  });
+
+  // 合計行
+  const grandTotal = totalByMonth.reduce((s,v)=>s+v, 0);
+  tableHtml += `<tr class="total-row">
+    <td class="cat-col">支出合計</td>`;
+
+  totalByMonth.forEach(amt => {
+    tableHtml += `<td>${fmtYen(amt).slice(1)}</td>`;
+  });
+
+  tableHtml += `<td class="sum-cell">${fmtYen(grandTotal).slice(1)}</td>
+  </tr>
+  </tbody>
+  </table>`;
+
+  let html = `<div class="table-wrapper">${tableHtml}</div>`;
+  html += `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">※ 表は横スクロール対応です</div>`;
+
+  return html;
 }
 
 function buildDonut(sorted, total) {
