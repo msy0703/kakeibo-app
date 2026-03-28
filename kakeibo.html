@@ -331,10 +331,64 @@
   }
 
   /* ── ADD BUTTON ── */
-  .fab {
+  /* Bottom Toolbar */
+  .bottom-toolbar {
     position: fixed;
-    bottom: calc(20px + var(--safe-bottom));
-    right: 20px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + var(--safe-bottom));
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 100;
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .toolbar-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 24px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .toolbar-btn:active {
+    background: var(--bg3);
+    transform: scale(0.92);
+  }
+
+  .toolbar-btn.fab {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), #1976d2);
+    color: white;
+    font-size: 24px;
+    box-shadow: 0 2px 8px rgba(79,195,247,0.3);
+  }
+
+  .toolbar-btn.fab:active {
+    background: linear-gradient(135deg, var(--accent-blue), #1976d2);
+    box-shadow: 0 1px 4px rgba(79,195,247,0.2);
+  }
+
+  /* Content padding for toolbar */
+  #app {
+    padding-bottom: calc(60px + var(--safe-bottom));
+  }
+
+  /* Legacy fab style (keep for backwards compat) */
+  .fab {
     width: 56px; height: 56px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--accent-blue), #1976d2);
@@ -1212,15 +1266,13 @@
   </div>
 </div>
 
-<!-- FAB -->
-<button class="fab" onclick="openModal()" id="fabBtn">＋</button>
-
-<!-- RECEIPT BTN -->
-<button class="receipt-btn" onclick="openScan()">&#x1F9FE;</button>
-
-<!-- DATA SHARING BTNS -->
-<button class="receipt-btn" style="bottom:70px" onclick="openExportImport()">📤</button>
-<button class="receipt-btn" style="bottom:130px" onclick="openUserSettings()">👤</button>
+<!-- BOTTOM TOOLBAR -->
+<div class="bottom-toolbar">
+  <button class="toolbar-btn" onclick="openUserSettings()" title="登録者名設定">👤</button>
+  <button class="toolbar-btn" onclick="openExportImport()" title="データ共有">📤</button>
+  <button class="toolbar-btn" onclick="openScan()" title="レシートスキャン">🧾</button>
+  <button class="toolbar-btn fab" onclick="openModal()" title="取引追加">＋</button>
+</div>
 
 <!-- SCAN OVERLAY -->
 <div class="scan-overlay" id="scanOverlay">
@@ -1319,6 +1371,21 @@
   </div>
 </div>
 
+<!-- UPDATE AVAILABLE MODAL -->
+<div class="modal-overlay" id="updateAvailableOverlay" style="pointer-events:all">
+  <div class="modal-box" style="max-width:320px">
+    <div class="modal-title">📲 アップデート利用可能</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;text-align:center">
+      <div style="margin-bottom:8px">新しいバージョンが利用可能です</div>
+      <div style="font-size:11px">アプリを再起動して最新版に更新します</div>
+    </div>
+    <div class="modal-buttons">
+      <button onclick="doUpdateApp()" class="modal-btn primary" style="flex:1">更新</button>
+      <button onclick="closeUpdateModal()" class="modal-btn" style="flex:1">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1407,7 +1474,7 @@ const CAT_COLORS = [
 ];
 
 // PWA バージョン管理（更新時にこれを上げる）
-const APP_VERSION = '20260329-003';
+const APP_VERSION = '20260329-004';
 
 let state = {
   currentYear: new Date().getFullYear(),
@@ -2573,6 +2640,8 @@ function checkImportParam() {
 }
 
 // ── AUTO UPDATE CHECK ──
+let updateAvailable = false;
+
 function checkForUpdates() {
   // バックグラウンドで定期的に更新チェック
   const checkInterval = 60000; // 60秒ごと
@@ -2584,9 +2653,9 @@ function checkForUpdates() {
         const match = html.match(/const APP_VERSION = '([^']+)'/);
         const latestVersion = match ? match[1] : null;
 
-        if (latestVersion && latestVersion !== APP_VERSION) {
-          showToast('📲 新しいバージョンがあります。ページをリロードしてください');
-          // リロード提案ボタン付きのトーストを表示したい場合は、以下をカスタマイズ可能
+        if (latestVersion && latestVersion !== APP_VERSION && !updateAvailable) {
+          updateAvailable = true;
+          showUpdateModal();
         }
       })
       .catch(() => {
@@ -2599,6 +2668,19 @@ function checkForUpdates() {
 
   // 定期チェック
   setInterval(doCheck, checkInterval);
+}
+
+function showUpdateModal() {
+  document.getElementById('updateAvailableOverlay').classList.add('open');
+}
+
+function closeUpdateModal() {
+  document.getElementById('updateAvailableOverlay').classList.remove('open');
+}
+
+function doUpdateApp() {
+  // アプリを再起動（キャッシュクリア）
+  location.reload(true); // true でキャッシュをバイパス
 }
 
 // ── INIT ──
