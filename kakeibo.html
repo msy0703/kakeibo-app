@@ -2321,18 +2321,56 @@ function render() {
 
 // ── PWA SERVICE WORKER (inline) ──
 if ('serviceWorker' in navigator) {
+  const appVersion = APP_VERSION; // グローバルの APP_VERSION を参照
   const swCode = `
-const CACHE='kakeibo-v1';
-self.addEventListener('install',e=>{ self.skipWaiting(); });
-self.addEventListener('fetch',e=>{
-  e.respondWith(
-    caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('',{status:503})))
+const CACHE='kakeibo-${appVersion}';
+const ASSET_CACHE='assets-${appVersion}';
+
+self.addEventListener('install',e=>{
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE));
+});
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(names =>
+      Promise.all(
+        names
+          .filter(name => name.startsWith('kakeibo-') && !name.includes('${appVersion}'))
+          .map(name => {
+            console.log('Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      )
+    )
   );
+});
+
+self.addEventListener('fetch',e=>{
+  // HTMLファイルはネットワークファースト（常に最新を取得）
+  if (e.request.method === 'GET' && (e.request.url.endsWith('.html') || e.request.url.endsWith('/'))) {
+    e.respondWith(
+      fetch(e.request).then(r => {
+        if (r.ok) {
+          caches.open(CACHE).then(cache => cache.put(e.request, r.clone()));
+        }
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    // その他のアセットはキャッシュファースト
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('',{status:503})))
+    );
+  }
 });
 `;
   const blob = new Blob([swCode], {type:'text/javascript'});
   const url = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(url).catch(()=>{});
+  navigator.serviceWorker.register(url).then(reg => {
+    // Service Workerの更新をチェック
+    setInterval(() => reg.update(), 60000); // 60秒ごと
+  }).catch(()=>{});
 }
 
 // ── USER & DATA SHARING ──
