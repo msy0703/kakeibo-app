@@ -1091,6 +1091,67 @@
     width: 100% !important;
     min-width: 600px;
   }
+
+  /* Accordion */
+  .accordion-item {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg3);
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+  }
+
+  .accordion-header:active {
+    background: var(--border);
+  }
+
+  .accordion-arrow {
+    font-size: 12px;
+    color: var(--text-muted);
+    width: 12px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+
+  .accordion-date {
+    flex: 1;
+  }
+
+  .accordion-date-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .accordion-summary {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .accordion-content {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+  }
+
+  .accordion-content .txn-item {
+    border-bottom: 1px solid var(--border);
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .accordion-content .txn-item:last-child {
+    border-bottom: none;
+  }
 </style>
 </head>
 <body>
@@ -1372,6 +1433,9 @@ function upgradeDataWithUser() {
   if (updated) save();
 }
 
+// 明細アコーディオン状態管理
+let expandedDates = {};
+
 function save() {
   localStorage.setItem('kakeibo_txns', JSON.stringify(state.txns));
   localStorage.setItem('kakeibo_budgets', JSON.stringify(state.budgets));
@@ -1409,6 +1473,7 @@ function changeMonth(dir) {
   state.currentMonth += dir;
   if (state.currentMonth < 0)  { state.currentMonth = 11; state.currentYear--; }
   if (state.currentMonth > 11) { state.currentMonth = 0;  state.currentYear++; }
+  expandedDates = {}; // 月変更時にアコーディオン状態をリセット
   render();
 }
 
@@ -1444,26 +1509,59 @@ function renderList() {
     const d = new Date(date);
     const days = ['日','月','火','水','木','金','土'];
     const label = `${d.getMonth()+1}月${d.getDate()}日 (${days[d.getDay()]})`;
-    html += `<div class="date-group"><div class="date-group-header">${label}</div>`;
-    grouped[date].forEach(t => {
-      const cats = CATEGORIES[t.type];
-      const cat = cats.find(c=>c.id===t.cat) || cats[cats.length-1];
-      const color = t.type==='income' ? '#69f0ae33' : '#ff6b6b22';
-      const amtColor = t.type==='income' ? 'var(--income)' : 'var(--expense)';
-      const sign = t.type==='income' ? '+' : '-';
-      html += `<div class="txn-item" onclick="openEdit('${t.id}')">
-        <div class="txn-icon" style="background:${color}">${cat.icon}</div>
-        <div class="txn-info">
-          <div class="txn-memo">${t.memo || cat.name}</div>
-          <div class="txn-cat">${cat.name}${t.registeredBy ? ' · ' + t.registeredBy : ''}</div>
+
+    // その日の収入・支出を集計
+    const dayTxns = grouped[date];
+    const dayIncome = dayTxns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount, 0);
+    const dayExpense = dayTxns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount, 0);
+    const dayBalance = dayIncome - dayExpense;
+
+    // 開閉状態
+    const isExpanded = expandedDates[date];
+    const arrow = isExpanded ? '▼' : '▶';
+
+    // 日付ヘッダー行
+    html += `<div class="accordion-item">
+      <div class="accordion-header" onclick="toggleDateAccordion('${date}')">
+        <div class="accordion-arrow">${arrow}</div>
+        <div class="accordion-date">
+          <div class="accordion-date-label">${label}</div>
         </div>
-        <div class="txn-amount" style="color:${amtColor}">${sign}${fmtYen(t.amount)}</div>
+        <div class="accordion-summary" style="color:${dayBalance >= 0 ? 'var(--income)' : 'var(--expense)'}">
+          ${dayBalance >= 0 ? '+' : ''}${fmtYen(dayBalance)}
+        </div>
       </div>`;
-    });
-    html += '</div>';
+
+    // 詳細行（開いている場合のみ表示）
+    if (isExpanded) {
+      html += `<div class="accordion-content">`;
+      dayTxns.forEach(t => {
+        const cats = CATEGORIES[t.type];
+        const cat = cats.find(c=>c.id===t.cat) || cats[cats.length-1];
+        const color = t.type==='income' ? '#69f0ae33' : '#ff6b6b22';
+        const amtColor = t.type==='income' ? 'var(--income)' : 'var(--expense)';
+        const sign = t.type==='income' ? '+' : '-';
+        html += `<div class="txn-item" onclick="openEdit('${t.id}')">
+          <div class="txn-icon" style="background:${color}">${cat.icon}</div>
+          <div class="txn-info">
+            <div class="txn-memo">${t.memo || cat.name}</div>
+            <div class="txn-cat">${cat.name}${t.registeredBy ? ' · ' + t.registeredBy : ''}</div>
+          </div>
+          <div class="txn-amount" style="color:${amtColor}">${sign}${fmtYen(t.amount)}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
   });
 
   el.innerHTML = html;
+}
+
+function toggleDateAccordion(date) {
+  expandedDates[date] = !expandedDates[date];
+  render();
 }
 
 // ── CHART VIEW ──
