@@ -1232,6 +1232,9 @@ const CAT_COLORS = [
   '#ffe082','#b0bec5'
 ];
 
+// PWA バージョン管理（更新時にこれを上げる）
+const APP_VERSION = '20260329-001';
+
 let state = {
   currentYear: new Date().getFullYear(),
   currentMonth: new Date().getMonth(),
@@ -2105,9 +2108,39 @@ function checkImportParam() {
   }
 }
 
+// ── AUTO UPDATE CHECK ──
+function checkForUpdates() {
+  // バックグラウンドで定期的に更新チェック
+  const checkInterval = 60000; // 60秒ごと
+
+  const doCheck = () => {
+    fetch(window.location.href + '?nocache=' + Date.now())
+      .then(r => r.text())
+      .then(html => {
+        const match = html.match(/const APP_VERSION = '([^']+)'/);
+        const latestVersion = match ? match[1] : null;
+
+        if (latestVersion && latestVersion !== APP_VERSION) {
+          showToast('📲 新しいバージョンがあります。ページをリロードしてください');
+          // リロード提案ボタン付きのトーストを表示したい場合は、以下をカスタマイズ可能
+        }
+      })
+      .catch(() => {
+        // ネットワークエラー時は無視
+      });
+  };
+
+  // 初回チェック（起動から3秒後）
+  setTimeout(doCheck, 3000);
+
+  // 定期チェック
+  setInterval(doCheck, checkInterval);
+}
+
 // ── INIT ──
 upgradeDataWithUser();
 checkImportParam();
+checkForUpdates();
 render();
 </script>
 </body>
