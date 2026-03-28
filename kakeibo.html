@@ -337,14 +337,14 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: calc(60px + var(--safe-bottom));
     background: var(--bg2);
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-around;
     z-index: 100;
-    padding-bottom: var(--safe-bottom);
+    padding: 0 0 var(--safe-bottom) 0;
+    min-height: 60px;
   }
 
   .toolbar-btn {
@@ -384,7 +384,7 @@
 
   /* Content padding for toolbar */
   #app {
-    padding-bottom: calc(60px + var(--safe-bottom));
+    padding-bottom: 60px;
   }
 
   /* Legacy fab style (keep for backwards compat) */
@@ -1474,7 +1474,7 @@ const CAT_COLORS = [
 ];
 
 // PWA バージョン管理（更新時にこれを上げる）
-const APP_VERSION = '20260329-005';
+const APP_VERSION = '20260329-006';
 
 let state = {
   currentYear: new Date().getFullYear(),
@@ -1761,6 +1761,19 @@ function renderYearChart() {
   html += `</div>`;
 
   document.getElementById('chart-year-content').innerHTML = html;
+
+  // グラフバーのイベントリスナーを追加
+  setTimeout(() => {
+    const bars = document.querySelectorAll('.chart-bar');
+    bars.forEach(bar => {
+      bar.addEventListener('click', (e) => {
+        const amount = parseInt(e.target.getAttribute('data-amount'));
+        const label = e.target.getAttribute('data-label');
+        showBarAmount(amount, label);
+        e.stopPropagation();
+      });
+    });
+  }, 0);
 }
 
 function getYearTxns() {
@@ -1797,12 +1810,11 @@ function buildMonthlyTrendChart() {
 
     const incomeAmount = d.income;
     const expenseAmount = d.expense;
-    bars += `<g onclick="showBarAmount(${incomeAmount}, '${monthLabels[i]}収入')" style="cursor:pointer">
-      <rect x="${x1}" y="${y1}" width="${barW}" height="${incomePct * chartH}" fill="var(--income)" opacity="0.7"/>
-    </g>`;
-    bars += `<g onclick="showBarAmount(${expenseAmount}, '${monthLabels[i]}支出')" style="cursor:pointer">
-      <rect x="${x2}" y="${y2}" width="${barW}" height="${expensePct * chartH}" fill="var(--expense)" opacity="0.7"/>
-    </g>`;
+    const label1 = monthLabels[i] + '収入';
+    const label2 = monthLabels[i] + '支出';
+
+    bars += `<rect class="chart-bar" x="${x1}" y="${y1}" width="${barW}" height="${incomePct * chartH}" fill="var(--income)" opacity="0.7" data-amount="${incomeAmount}" data-label="${label1}" style="cursor:pointer"/>`;
+    bars += `<rect class="chart-bar" x="${x2}" y="${y2}" width="${barW}" height="${expensePct * chartH}" fill="var(--expense)" opacity="0.7" data-amount="${expenseAmount}" data-label="${label2}" style="cursor:pointer"/>`;
   });
 
   let result = `<svg width="${w}" height="${h}" style="background:var(--bg3);border-radius:8px;margin:8px 0">
