@@ -1474,7 +1474,7 @@ const CAT_COLORS = [
 ];
 
 // PWA バージョン管理（更新時にこれを上げる）
-const APP_VERSION = '20260329-004';
+const APP_VERSION = '20260329-005';
 
 let state = {
   currentYear: new Date().getFullYear(),
@@ -1756,7 +1756,7 @@ function renderYearChart() {
   html += `</div>`;
 
   // P/L書形式の表
-  html += `<div class="chart-section"><div class="section-title">📋 P/L書（月別×カテゴリ）</div>`;
+  html += `<div class="chart-section"><div class="section-title">📊 カテゴリ別月表</div>`;
   html += buildYearPLTable();
   html += `</div>`;
 
@@ -1795,8 +1795,14 @@ function buildMonthlyTrendChart() {
     const y1 = h - 10 - incomePct * chartH;
     const y2 = h - 10 - expensePct * chartH;
 
-    bars += `<rect x="${x1}" y="${y1}" width="${barW}" height="${incomePct * chartH}" fill="var(--income)" opacity="0.7"/>`;
-    bars += `<rect x="${x2}" y="${y2}" width="${barW}" height="${expensePct * chartH}" fill="var(--expense)" opacity="0.7"/>`;
+    const incomeAmount = d.income;
+    const expenseAmount = d.expense;
+    bars += `<g onclick="showBarAmount(${incomeAmount}, '${monthLabels[i]}収入')" style="cursor:pointer">
+      <rect x="${x1}" y="${y1}" width="${barW}" height="${incomePct * chartH}" fill="var(--income)" opacity="0.7"/>
+    </g>`;
+    bars += `<g onclick="showBarAmount(${expenseAmount}, '${monthLabels[i]}支出')" style="cursor:pointer">
+      <rect x="${x2}" y="${y2}" width="${barW}" height="${expensePct * chartH}" fill="var(--expense)" opacity="0.7"/>
+    </g>`;
   });
 
   let result = `<svg width="${w}" height="${h}" style="background:var(--bg3);border-radius:8px;margin:8px 0">
@@ -2637,6 +2643,11 @@ function checkImportParam() {
       console.error('Import error:', err);
     }
   }
+}
+
+// グラフ棒の金額表示
+function showBarAmount(amount, label) {
+  showToast(`${label}: ${fmtYen(amount)}`);
 }
 
 // ── AUTO UPDATE CHECK ──
