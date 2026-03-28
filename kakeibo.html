@@ -12,6 +12,9 @@
 <!-- PWA Manifest (inline base64) -->
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E5%AE%B6%E8%A8%88%E7%B0%BF%22%2C%22short_name%22%3A%22%E5%AE%B6%E8%A8%88%E7%B0%BF%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22orientation%22%3A%22portrait%22%7D">
 
+<!-- QR Code Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap');
 
@@ -934,6 +937,54 @@
   }
 
   .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Modal Box (centered) */
+  .modal-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 320px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .modal-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .modal-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text-primary);
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .modal-btn:hover {
+    background: var(--border);
+  }
+
+  .modal-btn.primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: var(--bg);
+  }
+
+  .modal-btn.primary:hover {
+    background: #36b5e8;
+  }
 </style>
 </head>
 <body>
@@ -993,6 +1044,10 @@
 <!-- RECEIPT BTN -->
 <button class="receipt-btn" onclick="openScan()">&#x1F9FE;</button>
 
+<!-- DATA SHARING BTNS -->
+<button class="receipt-btn" style="bottom:70px" onclick="openExportImport()">📤</button>
+<button class="receipt-btn" style="bottom:130px" onclick="openUserSettings()">👤</button>
+
 <!-- SCAN OVERLAY -->
 <div class="scan-overlay" id="scanOverlay">
   <div id="scanStep1" style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:360px">
@@ -1028,6 +1083,65 @@
     <div class="result-list" id="resultList"></div>
     <button class="import-btn" onclick="importSelected()">選択した項目を取り込む</button>
     <button class="scan-close-btn" onclick="closeScan()">キャンセル</button>
+  </div>
+</div>
+
+<!-- USER SETTINGS MODAL -->
+<div class="modal-overlay" id="userSettingsOverlay" onclick="handleUserSettingsOverlayClick(event)">
+  <div class="modal-box" style="max-width:320px">
+    <div class="modal-title">登録者名を設定</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">あなたの名前を入力してください。このデバイスで記憶されます。</div>
+    <input type="text" id="userNameInput" placeholder="例：父, 母, 太郎" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text-primary);margin-bottom:12px;outline:none;">
+    <div class="modal-buttons">
+      <button onclick="saveUserName()" class="modal-btn primary">保存</button>
+      <button onclick="closeUserSettings()" class="modal-btn">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT/IMPORT MODAL -->
+<div class="modal-overlay" id="exportImportOverlay" onclick="handleExportImportOverlayClick(event)">
+  <div class="modal-box" style="max-width:340px">
+    <div class="modal-title">データを共有</div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📤 エクスポート</div>
+      <button onclick="exportData()" class="modal-btn" style="width:100%;margin-bottom:8px">データをダウンロード</button>
+      <button onclick="showQRCode()" class="modal-btn" style="width:100%">QRコードを表示</button>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px"></div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📥 インポート</div>
+      <button onclick="importData()" class="modal-btn" style="width:100%">JSONファイルを読み込み</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(event)">
+    </div>
+
+    <button onclick="closeExportImport()" class="modal-btn" style="width:100%;margin-top:8px">閉じる</button>
+  </div>
+</div>
+
+<!-- QR CODE DISPLAY MODAL -->
+<div class="modal-overlay" id="qrCodeOverlay" onclick="handleQROverlayClick(event)">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-title">📱 データ共有QRコード</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">このQRコードを家族に撮影してもらいます</div>
+    <div id="qrCodeContainer" style="display:flex;justify-content:center;margin:16px 0"></div>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px">QRコード有効期限：このセッション中のみ</div>
+    <button onclick="closeQRCode()" class="modal-btn" style="width:100%">閉じる</button>
+  </div>
+</div>
+
+<!-- IMPORT CONFIRM MODAL -->
+<div class="modal-overlay" id="importConfirmOverlay" onclick="handleImportConfirmOverlayClick(event)">
+  <div class="modal-box" style="max-width:360px;max-height:70vh;overflow-y:auto">
+    <div class="modal-title">⚠️ インポート確認</div>
+    <div style="margin:12px 0" id="importConfirmContent"></div>
+    <div class="modal-buttons">
+      <button onclick="confirmImport()" class="modal-btn primary" style="flex:1">インポート</button>
+      <button onclick="cancelImport()" class="modal-btn" style="flex:1">キャンセル</button>
+    </div>
   </div>
 </div>
 
@@ -1123,11 +1237,24 @@ let state = {
   currentMonth: new Date().getMonth(),
   txns: JSON.parse(localStorage.getItem('kakeibo_txns') || '[]'),
   budgets: JSON.parse(localStorage.getItem('kakeibo_budgets') || '{}'),
+  registeredUser: localStorage.getItem('kakeibo_user') || null,
   editId: null,
   currentType: 'expense',
   selectedCat: 'food',
   budgetEditCat: null,
 };
+
+// 既存データへ登録者情報を付与
+function upgradeDataWithUser() {
+  let updated = false;
+  state.txns.forEach(txn => {
+    if (!txn.registeredBy) {
+      txn.registeredBy = 'システム';
+      updated = true;
+    }
+  });
+  if (updated) save();
+}
 
 function save() {
   localStorage.setItem('kakeibo_txns', JSON.stringify(state.txns));
@@ -1212,7 +1339,7 @@ function renderList() {
         <div class="txn-icon" style="background:${color}">${cat.icon}</div>
         <div class="txn-info">
           <div class="txn-memo">${t.memo || cat.name}</div>
-          <div class="txn-cat">${cat.name}</div>
+          <div class="txn-cat">${cat.name}${t.registeredBy ? ' · ' + t.registeredBy : ''}</div>
         </div>
         <div class="txn-amount" style="color:${amtColor}">${sign}${fmtYen(t.amount)}</div>
       </div>`;
@@ -1439,6 +1566,7 @@ function saveTxn() {
     cat: state.selectedCat,
     memo: document.getElementById('inputMemo').value,
     date,
+    registeredBy: state.registeredUser || 'システム',
   };
 
   if (state.editId) {
@@ -1778,7 +1906,208 @@ self.addEventListener('fetch',e=>{
   navigator.serviceWorker.register(url).catch(()=>{});
 }
 
+// ── USER & DATA SHARING ──
+
+// User Settings
+function openUserSettings() {
+  document.getElementById('userNameInput').value = state.registeredUser || '';
+  document.getElementById('userSettingsOverlay').classList.add('open');
+  document.getElementById('userNameInput').focus();
+}
+
+function closeUserSettings() {
+  document.getElementById('userSettingsOverlay').classList.remove('open');
+}
+
+function handleUserSettingsOverlayClick(e) {
+  if (e.target.id === 'userSettingsOverlay') closeUserSettings();
+}
+
+function saveUserName() {
+  const name = document.getElementById('userNameInput').value.trim();
+  if (!name) {
+    showToast('名前を入力してください');
+    return;
+  }
+  state.registeredUser = name;
+  localStorage.setItem('kakeibo_user', name);
+  closeUserSettings();
+  showToast('名前を保存しました ✓');
+}
+
+// Export/Import
+function openExportImport() {
+  document.getElementById('exportImportOverlay').classList.add('open');
+}
+
+function closeExportImport() {
+  document.getElementById('exportImportOverlay').classList.remove('open');
+}
+
+function handleExportImportOverlayClick(e) {
+  if (e.target.id === 'exportImportOverlay') closeExportImport();
+}
+
+function exportData() {
+  const data = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    txns: state.txns,
+    budgets: state.budgets
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kakeibo_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('データをダウンロードしました ✓');
+}
+
+function showQRCode() {
+  const data = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    txns: state.txns,
+    budgets: state.budgets
+  };
+  const json = JSON.stringify(data);
+  const base64 = btoa(unescape(encodeURIComponent(json)));
+  const url = window.location.href.split('?')[0] + '?import=' + base64;
+
+  document.getElementById('qrCodeContainer').innerHTML = '';
+  new QRCode(document.getElementById('qrCodeContainer'), {
+    text: url,
+    width: 256,
+    height: 256,
+    colorDark: '#e8e8f0',
+    colorLight: '#0d0d1a'
+  });
+
+  document.getElementById('exportImportOverlay').classList.remove('open');
+  document.getElementById('qrCodeOverlay').classList.add('open');
+}
+
+function closeQRCode() {
+  document.getElementById('qrCodeOverlay').classList.remove('open');
+  openExportImport();
+}
+
+function handleQROverlayClick(e) {
+  if (e.target.id === 'qrCodeOverlay') closeQRCode();
+}
+
+function importData() {
+  document.getElementById('importFileInput').click();
+}
+
+function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      importDataConfirm(data);
+    } catch (err) {
+      showToast('ファイル形式が無効です');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+let pendingImportData = null;
+
+function importDataConfirm(data) {
+  if (!data.txns || !Array.isArray(data.txns)) {
+    showToast('ファイルの形式が無効です');
+    return;
+  }
+
+  pendingImportData = data;
+
+  // Calculate merge stats
+  const newTxns = data.txns.filter(t => !state.txns.find(s => s.id === t.id));
+  const duplicateTxns = data.txns.filter(t => state.txns.find(s => s.id === t.id));
+
+  let html = `<div style="background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:12px">`;
+  html += `<div style="font-size:13px;color:var(--text-primary);margin-bottom:8px">📊 インポート内容</div>`;
+  html += `<div style="font-size:12px;color:var(--text-muted)">新規トランザクション: ${newTxns.length}件</div>`;
+  if (duplicateTxns.length > 0) {
+    html += `<div style="font-size:12px;color:var(--expense)">既存と重複: ${duplicateTxns.length}件（上書きします）</div>`;
+  }
+  html += `</div>`;
+
+  html += `<div style="font-size:11px;color:var(--text-muted);line-height:1.6">`;
+  html += `✓ 新規データを追加します<br>`;
+  html += `✓ 重複するIDは新しいデータで上書きします<br>`;
+  html += `✓ 予算情報もマージされます`;
+  html += `</div>`;
+
+  document.getElementById('importConfirmContent').innerHTML = html;
+  closeExportImport();
+  document.getElementById('importConfirmOverlay').classList.add('open');
+}
+
+function confirmImport() {
+  if (!pendingImportData) return;
+
+  const data = pendingImportData;
+
+  // Merge transactions
+  data.txns.forEach(txn => {
+    const idx = state.txns.findIndex(t => t.id === txn.id);
+    if (idx >= 0) {
+      state.txns[idx] = txn;
+    } else {
+      state.txns.push(txn);
+    }
+  });
+
+  // Merge budgets
+  if (data.budgets) {
+    state.budgets = { ...state.budgets, ...data.budgets };
+  }
+
+  save();
+  render();
+  document.getElementById('importConfirmOverlay').classList.remove('open');
+  showToast('データをインポートしました ✓');
+  pendingImportData = null;
+}
+
+function cancelImport() {
+  document.getElementById('importConfirmOverlay').classList.remove('open');
+  pendingImportData = null;
+  openExportImport();
+}
+
+function handleImportConfirmOverlayClick(e) {
+  if (e.target.id === 'importConfirmOverlay') cancelImport();
+}
+
+// URLパラメータからインポート（QRコード読み込み時）
+function checkImportParam() {
+  const params = new URLSearchParams(window.location.search);
+  const importBase64 = params.get('import');
+  if (importBase64) {
+    try {
+      const json = decodeURIComponent(escape(atob(importBase64)));
+      const data = JSON.parse(json);
+      importDataConfirm(data);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err) {
+      console.error('Import error:', err);
+    }
+  }
+}
+
 // ── INIT ──
+upgradeDataWithUser();
+checkImportParam();
 render();
 </script>
 </body>
