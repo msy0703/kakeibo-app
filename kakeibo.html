@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="家計簿">
 <meta name="theme-color" content="#1a1a2e">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com; manifest-src 'self' data:;">
 <title>家計簿</title>
 
 <!-- PWA Manifest (inline base64) -->
@@ -1475,7 +1476,7 @@ const CAT_COLORS = [
 ];
 
 // PWA バージョン管理（更新時にこれを上げる）
-const APP_VERSION = '20260329-008';
+const APP_VERSION = '20260329-009';
 
 let state = {
   currentYear: new Date().getFullYear(),
