@@ -8,14 +8,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="家計簿">
 <meta name="theme-color" content="#1a1a2e">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com; manifest-src 'self' data:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com; manifest-src 'self' data:;">
 <title>家計簿</title>
 
 <!-- PWA Manifest (inline base64) -->
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E5%AE%B6%E8%A8%88%E7%B0%BF%22%2C%22short_name%22%3A%22%E5%AE%B6%E8%A8%88%E7%B0%BF%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22orientation%22%3A%22portrait%22%7D">
-
-<!-- QR Code Library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap');
@@ -1334,8 +1331,7 @@
 
     <div style="margin-bottom:16px">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📤 エクスポート</div>
-      <button onclick="exportData()" class="modal-btn" style="width:100%;margin-bottom:8px">データをダウンロード</button>
-      <button onclick="showQRCode()" class="modal-btn" style="width:100%">QRコードを表示</button>
+      <button onclick="exportData()" class="modal-btn" style="width:100%">データをダウンロード</button>
     </div>
 
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px"></div>
@@ -1347,17 +1343,6 @@
     </div>
 
     <button onclick="closeExportImport()" class="modal-btn" style="width:100%;margin-top:8px">閉じる</button>
-  </div>
-</div>
-
-<!-- QR CODE DISPLAY MODAL -->
-<div class="modal-overlay" id="qrCodeOverlay" onclick="handleQROverlayClick(event)">
-  <div class="modal-box" style="max-width:360px">
-    <div class="modal-title">📱 データ共有QRコード</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">このQRコードを家族に撮影してもらいます</div>
-    <div id="qrCodeContainer" style="display:flex;justify-content:center;margin:16px 0"></div>
-    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:12px">QRコード有効期限：このセッション中のみ</div>
-    <button onclick="closeQRCode()" class="modal-btn" style="width:100%">閉じる</button>
   </div>
 </div>
 
@@ -1476,7 +1461,7 @@ const CAT_COLORS = [
 ];
 
 // PWA バージョン管理（更新時にこれを上げる）
-const APP_VERSION = '20260329-010';
+const APP_VERSION = '20260329-011';
 
 let state = {
   currentYear: new Date().getFullYear(),
@@ -2502,38 +2487,8 @@ function exportData() {
   showToast('データをダウンロードしました ✓');
 }
 
-function showQRCode() {
-  const data = {
-    version: 1,
-    exportDate: new Date().toISOString(),
-    txns: state.txns,
-    budgets: state.budgets
-  };
-  const json = JSON.stringify(data);
-  const base64 = btoa(unescape(encodeURIComponent(json)));
-  const url = window.location.href.split('?')[0] + '?import=' + base64;
 
-  document.getElementById('qrCodeContainer').innerHTML = '';
-  new QRCode(document.getElementById('qrCodeContainer'), {
-    text: url,
-    width: 256,
-    height: 256,
-    colorDark: '#e8e8f0',
-    colorLight: '#0d0d1a'
-  });
 
-  document.getElementById('exportImportOverlay').classList.remove('open');
-  document.getElementById('qrCodeOverlay').classList.add('open');
-}
-
-function closeQRCode() {
-  document.getElementById('qrCodeOverlay').classList.remove('open');
-  openExportImport();
-}
-
-function handleQROverlayClick(e) {
-  if (e.target.id === 'qrCodeOverlay') closeQRCode();
-}
 
 function importData() {
   document.getElementById('importFileInput').click();
@@ -2641,10 +2596,6 @@ function checkImportParam() {
   }
 }
 
-// グラフ棒の金額表示
-function showBarAmount(amount, label) {
-  showToast(`${label}: ${fmtYen(amount)}`);
-}
 
 // ── AUTO UPDATE CHECK ──
 let updateAvailable = false;
