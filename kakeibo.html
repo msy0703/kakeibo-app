@@ -364,6 +364,112 @@
     /* ── BUDGET VIEW ── */
     .budget-view { padding: 16px; }
 
+    /* ── MASTER VIEW ── */
+    .master-view { padding: 16px; }
+
+    .master-section {
+      margin-bottom: 24px;
+    }
+
+    .master-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent-blue);
+    }
+
+    .cat-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .cat-chip {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      font-size: 12px;
+      text-align: center;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cat-chip-icon {
+      font-size: 20px;
+    }
+
+    .cat-chip-delete {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      background: var(--expense);
+      border-radius: 50%;
+      color: white;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-cat-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .add-cat-input {
+      flex: 1;
+      display: flex;
+      gap: 6px;
+    }
+
+    .add-cat-input input {
+      flex: 1;
+      padding: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .add-cat-emoji {
+      width: 32px;
+      padding: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .add-btn {
+      padding: 8px 12px;
+      background: var(--accent-blue);
+      border: none;
+      color: var(--bg);
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .add-btn:active {
+      background: var(--accent-pink);
+    }
+
     .budget-item {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -707,6 +813,7 @@
     <div class="tab active" onclick="app.switchTab('list')">明細</div>
     <div class="tab" onclick="app.switchTab('chart')">グラフ</div>
     <div class="tab" onclick="app.switchTab('budget')">予算</div>
+    <div class="tab" onclick="app.switchTab('master')">⚙️</div>
   </div>
 
   <!-- CONTENT -->
@@ -721,31 +828,16 @@
       <div id="chart-year" style="display:none"></div>
     </div>
     <div id="budget-view" class="budget-view view" style="display:none"></div>
+    <div id="master-view" class="master-view view" style="display:none"></div>
   </div>
 </div>
 
 <!-- TOOLBAR -->
 <div class="toolbar">
-  <button class="toolbar-btn" onclick="app.openUserSettings()" title="登録者">👤</button>
+  <button class="toolbar-btn" onclick="app.switchTab('master')" title="設定">⚙️</button>
   <button class="toolbar-btn" onclick="app.openExportImport()" title="共有">📤</button>
   <button class="toolbar-btn" onclick="app.openScan()" title="スキャン">🧾</button>
   <button class="toolbar-btn" onclick="app.openModal()" title="追加">＋</button>
-</div>
-
-<!-- USER SETTINGS MODAL -->
-<div class="modal-overlay" id="userSettingsOverlay" onclick="app.closeOverlay(event, 'userSettingsOverlay')">
-  <div class="modal">
-    <div class="modal-title">登録者名</div>
-    <div class="modal-content">
-      <div class="form-group">
-        <input type="text" id="userNameInput" class="form-input" placeholder="名前を入力">
-      </div>
-    </div>
-    <div class="modal-buttons">
-      <button class="modal-btn primary" onclick="app.saveUserName()">保存</button>
-      <button class="modal-btn" onclick="app.closeUserSettings()">キャンセル</button>
-    </div>
-  </div>
 </div>
 
 <!-- EXPORT/IMPORT MODAL -->
@@ -849,7 +941,7 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-001';
+const APP_VERSION = '20260330-002';
 
 const CATEGORIES = {
   expense: [
@@ -876,6 +968,7 @@ class KakeiboApp {
       userName: localStorage.getItem('kakeiboUserName') || '本人',
       txns: this.loadTxns(),
       budgets: this.loadBudgets(),
+      customCategories: this.loadCustomCategories(),
       currentYear: new Date().getFullYear(),
       currentMonth: new Date().getMonth() + 1
     };
@@ -926,6 +1019,21 @@ class KakeiboApp {
     localStorage.setItem('kakeibobudgets', JSON.stringify(this.state.budgets));
   }
 
+  loadCustomCategories() {
+    const data = localStorage.getItem('kakeiboCustomCategories');
+    return data ? JSON.parse(data) : { expense: [], income: [] };
+  }
+
+  saveCustomCategories() {
+    localStorage.setItem('kakeiboCustomCategories', JSON.stringify(this.state.customCategories));
+  }
+
+  getCategories(type) {
+    const base = type === 'expense' ? CATEGORIES.expense : CATEGORIES.income;
+    const custom = this.state.customCategories[type] || [];
+    return [...base, ...custom];
+  }
+
   changeMonth(delta) {
     this.state.currentMonth += delta;
     if (this.state.currentMonth > 12) {
@@ -941,12 +1049,13 @@ class KakeiboApp {
   switchTab(tab) {
     this.ui.currentTab = tab;
     document.querySelectorAll('.tab').forEach((el, i) => {
-      el.classList.toggle('active', ['list', 'chart', 'budget'][i] === tab);
+      el.classList.toggle('active', ['list', 'chart', 'budget', 'master'][i] === tab);
     });
     document.querySelectorAll('.view').forEach(el => el.style.display = 'none');
     document.getElementById(`${tab}-view`).style.display = 'block';
     if (tab === 'chart') this.renderChart();
     else if (tab === 'budget') this.renderBudget();
+    else if (tab === 'master') this.renderMaster();
     else this.renderList();
   }
 
@@ -1003,7 +1112,7 @@ class KakeiboApp {
             <div class="date-summary">残高: ${this.formatYen(dayBalance)}</div>`;
 
         dateTxns.forEach(t => {
-          const cat = [...CATEGORIES.income, ...CATEGORIES.expense].find(c => c.id === t.cat) || { icon: '📦', name: '?' };
+          const cat = [...this.getCategories('income'), ...this.getCategories('expense')].find(c => c.id === t.cat) || { icon: '📦', name: '?' };
           html += `<div class="txn-item" onclick="app.openEdit('${t.id}')">
             <div class="txn-icon">${cat.icon}</div>
             <div class="txn-info">
@@ -1044,7 +1153,7 @@ class KakeiboApp {
     if (sorted.length) {
       html += `<div class="chart-section"><div class="section-title">支出の内訳</div>`;
       sorted.forEach(([catId, amt], i) => {
-        const cat = CATEGORIES.expense.find(c => c.id === catId) || { icon: '📦', name: 'その他' };
+        const cat = this.getCategories('expense').find(c => c.id === catId) || { icon: '📦', name: 'その他' };
         const pct = total ? (amt / total * 100) : 0;
         html += `<div class="category-bar">
           <div class="cat-name">${cat.icon} ${cat.name}</div>
@@ -1063,7 +1172,7 @@ class KakeiboApp {
     if (incSorted.length) {
       html += `<div class="chart-section"><div class="section-title">収入の内訳</div>`;
       incSorted.forEach(([catId, amt], i) => {
-        const cat = CATEGORIES.income.find(c => c.id === catId) || { icon: '💰', name: 'その他' };
+        const cat = this.getCategories('income').find(c => c.id === catId) || { icon: '💰', name: 'その他' };
         const pct = incTotal ? (amt / incTotal * 100) : 0;
         html += `<div class="category-bar">
           <div class="cat-name">${cat.icon} ${cat.name}</div>
@@ -1111,7 +1220,7 @@ class KakeiboApp {
     html += '</tr>';
 
     catList.forEach(catId => {
-      const cat = [...CATEGORIES.income, ...CATEGORIES.expense].find(c => c.id === catId) || { icon: '📦', name: '?' };
+      const cat = [...this.getCategories('income'), ...this.getCategories('expense')].find(c => c.id === catId) || { icon: '📦', name: '?' };
       html += `<tr><td style="padding:6px;border-bottom:1px solid var(--border)">${cat.icon} ${cat.name}</td>`;
       for (let m = 1; m <= 12; m++) {
         const amt = monthData[m].categories[catId] || 0;
@@ -1138,7 +1247,7 @@ class KakeiboApp {
       html = '<div class="empty-state"><div class="icon">📋</div>予算が設定されていません</div>';
     } else {
       budgets.forEach(([catId, budget]) => {
-        const cat = CATEGORIES.expense.find(c => c.id === catId) || { icon: '📦', name: 'その他' };
+        const cat = this.getCategories('expense').find(c => c.id === catId) || { icon: '📦', name: 'その他' };
         const txns = this.state.txns.filter(t => t.cat === catId && t.type === 'expense');
         const spent = txns.reduce((s, t) => s + t.amount, 0);
         const pct = Math.min(spent / budget * 100, 100);
@@ -1170,11 +1279,112 @@ class KakeiboApp {
     document.getElementById('monthLabel').textContent = `${this.state.currentYear}年${this.state.currentMonth}月`;
   }
 
+  renderMaster() {
+    let html = '';
+
+    // 登録者名
+    html += `<div class="master-section">
+      <div class="master-section-title">登録者名</div>
+      <div class="add-cat-form">
+        <input type="text" id="masterUserName" class="form-input" style="flex:1" value="${this.state.userName}">
+        <button class="add-btn" onclick="app.saveMasterUserName()">保存</button>
+      </div>
+    </div>`;
+
+    // 支出カテゴリ
+    html += `<div class="master-section">
+      <div class="master-section-title">支出カテゴリ</div>
+      <div class="cat-list">`;
+
+    this.getCategories('expense').forEach(cat => {
+      const isCustom = this.state.customCategories.expense.some(c => c.id === cat.id);
+      html += `<div class="cat-chip">
+        <div class="cat-chip-icon">${cat.icon}</div>
+        <div style="font-size:10px">${cat.name}</div>
+        ${isCustom ? `<button class="cat-chip-delete" onclick="app.deleteCat('expense', '${cat.id}')">×</button>` : ''}
+      </div>`;
+    });
+
+    html += `</div>
+      <div class="add-cat-form">
+        <div class="add-cat-input">
+          <input type="text" id="expenseCatInput" placeholder="カテゴリ名" maxlength="8">
+          <input type="text" id="expenseCatEmoji" placeholder="絵文字" maxlength="2" class="add-cat-emoji">
+        </div>
+        <button class="add-btn" onclick="app.addCat('expense')">追加</button>
+      </div>
+    </div>`;
+
+    // 収入カテゴリ
+    html += `<div class="master-section">
+      <div class="master-section-title">収入カテゴリ</div>
+      <div class="cat-list">`;
+
+    this.getCategories('income').forEach(cat => {
+      const isCustom = this.state.customCategories.income.some(c => c.id === cat.id);
+      html += `<div class="cat-chip">
+        <div class="cat-chip-icon">${cat.icon}</div>
+        <div style="font-size:10px">${cat.name}</div>
+        ${isCustom ? `<button class="cat-chip-delete" onclick="app.deleteCat('income', '${cat.id}')">×</button>` : ''}
+      </div>`;
+    });
+
+    html += `</div>
+      <div class="add-cat-form">
+        <div class="add-cat-input">
+          <input type="text" id="incomeCatInput" placeholder="カテゴリ名" maxlength="8">
+          <input type="text" id="incomeCatEmoji" placeholder="絵文字" maxlength="2" class="add-cat-emoji">
+        </div>
+        <button class="add-btn" onclick="app.addCat('income')">追加</button>
+      </div>
+    </div>`;
+
+    document.getElementById('master-view').innerHTML = html;
+  }
+
+  addCat(type) {
+    const nameInput = document.getElementById(`${type}CatInput`);
+    const emojiInput = document.getElementById(`${type}CatEmoji`);
+    const name = nameInput.value.trim();
+    const emoji = emojiInput.value.trim();
+
+    if (!name || !emoji) {
+      this.showToast('カテゴリ名と絵文字を入力してください');
+      return;
+    }
+
+    const id = 'custom_' + Date.now();
+    const newCat = { id, icon: emoji, name };
+    this.state.customCategories[type].push(newCat);
+    this.saveCustomCategories();
+    nameInput.value = '';
+    emojiInput.value = '';
+    this.renderMaster();
+    this.showToast('カテゴリを追加しました');
+  }
+
+  deleteCat(type, id) {
+    this.state.customCategories[type] = this.state.customCategories[type].filter(c => c.id !== id);
+    this.saveCustomCategories();
+    this.renderMaster();
+    this.showToast('カテゴリを削除しました');
+  }
+
+  saveMasterUserName() {
+    const name = document.getElementById('masterUserName').value.trim();
+    if (name) {
+      this.state.userName = name;
+      localStorage.setItem('kakeiboUserName', name);
+      this.showToast('保存しました');
+    }
+  }
+
   render() {
     this.updateSummary();
     if (this.ui.currentTab === 'list') this.renderList();
     else if (this.ui.currentTab === 'chart') this.renderChart();
     else if (this.ui.currentTab === 'budget') this.renderBudget();
+    else if (this.ui.currentTab === 'master') this.renderMaster();
   }
 
   // MODALS
@@ -1265,7 +1475,7 @@ class KakeiboApp {
   }
 
   renderCatButtons() {
-    const cats = this.ui.selectedType === 'expense' ? CATEGORIES.expense : CATEGORIES.income;
+    const cats = this.getCategories(this.ui.selectedType);
     let html = '';
     cats.forEach(cat => {
       html += `<button class="cat-btn ${cat.id === this.ui.selectedCat ? 'selected' : ''}" onclick="app.ui.selectedCat='${cat.id}';app.renderCatButtons()">
@@ -1273,25 +1483,6 @@ class KakeiboApp {
       </button>`;
     });
     document.getElementById('catButtons').innerHTML = html;
-  }
-
-  openUserSettings() {
-    document.getElementById('userNameInput').value = this.state.userName;
-    document.getElementById('userSettingsOverlay').classList.add('open');
-  }
-
-  closeUserSettings() {
-    document.getElementById('userSettingsOverlay').classList.remove('open');
-  }
-
-  saveUserName() {
-    const name = document.getElementById('userNameInput').value.trim();
-    if (name) {
-      this.state.userName = name;
-      localStorage.setItem('kakeiboUserName', name);
-      this.closeUserSettings();
-      this.showToast('保存しました');
-    }
   }
 
   openExportImport() {
