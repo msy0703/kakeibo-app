@@ -365,7 +365,34 @@
     .budget-view { padding: 16px; }
 
     /* ── MASTER VIEW ── */
-    .master-view { padding: 16px; }
+    .master-view { padding: 0; }
+
+    .master-tabs {
+      display: flex;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+    }
+
+    .master-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .master-tab.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    .master-content {
+      padding: 16px;
+    }
 
     .master-section {
       margin-bottom: 24px;
@@ -378,6 +405,64 @@
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 2px solid var(--accent-blue);
+    }
+
+    .app-info-block {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .app-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+
+    .app-info-label {
+      color: var(--text-secondary);
+    }
+
+    .app-info-value {
+      color: var(--text-primary);
+      font-family: 'DM Mono', monospace;
+      font-weight: 600;
+    }
+
+    .version-history {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .version-item {
+      margin-bottom: 16px;
+    }
+
+    .version-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .version-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 8px;
+    }
+
+    .version-changes {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .version-changes li {
+      margin-left: 16px;
+      margin-bottom: 4px;
     }
 
     .cat-list {
@@ -876,7 +961,16 @@
       <div id="chart-year" style="display:none"></div>
     </div>
     <div id="budget-view" class="budget-view view" style="display:none"></div>
-    <div id="master-view" class="master-view view" style="display:none"></div>
+    <div id="master-view" class="master-view view" style="display:none">
+      <div class="master-tabs">
+        <div class="master-tab active" onclick="app.setMasterTab('settings')">基本設定</div>
+        <div class="master-tab" onclick="app.setMasterTab('info')">アプリ情報</div>
+      </div>
+      <div class="master-content">
+        <div id="master-settings-tab" style="display:block"></div>
+        <div id="master-info-tab" style="display:none"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -988,6 +1082,7 @@
 <div id="updateModal" class="update-modal">
   <div class="update-modal-title">📲 アップデート</div>
   <div class="update-modal-message">新しいバージョンが利用可能です</div>
+  <div id="updateChanges" class="update-modal-message" style="font-size:12px;color:var(--text-secondary);background:var(--bg3);padding:12px;border-radius:8px;margin:12px 0;max-height:120px;overflow-y:auto"></div>
   <div class="update-modal-buttons">
     <button class="primary" onclick="app.updateApp()">更新</button>
     <button onclick="app.closeUpdateModal()">スキップ</button>
@@ -995,7 +1090,25 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-005';
+const APP_VERSION = '20260330-006';
+
+const VERSION_INFO = {
+  '20260330-006': {
+    date: '2026-03-30',
+    changes: [
+      'マスタ画面をタブで分割（基本設定/アプリ情報）',
+      'アプリ情報タブでバージョンと更新内容を表示',
+      'アップデートモーダルに更新内容を表示'
+    ]
+  },
+  '20260330-005': {
+    date: '2026-03-30',
+    changes: [
+      '取引タイプ（支出/収入）をカード形式に変更',
+      '絵文字と文字で選択肢を視認性向上'
+    ]
+  }
+};
 
 const CATEGORIES = {
   expense: [
@@ -1333,7 +1446,21 @@ class KakeiboApp {
     document.getElementById('monthLabel').textContent = `${this.state.currentYear}年${this.state.currentMonth}月`;
   }
 
+  setMasterTab(tab) {
+    document.querySelectorAll('.master-tab').forEach((el, i) => {
+      el.classList.toggle('active', ['settings', 'info'][i] === tab);
+    });
+    document.getElementById('master-settings-tab').style.display = tab === 'settings' ? 'block' : 'none';
+    document.getElementById('master-info-tab').style.display = tab === 'info' ? 'block' : 'none';
+    if (tab === 'info') this.renderMasterInfo();
+    else this.renderMasterSettings();
+  }
+
   renderMaster() {
+    this.renderMasterSettings();
+  }
+
+  renderMasterSettings() {
     let html = '';
 
     // 登録者名
@@ -1393,7 +1520,48 @@ class KakeiboApp {
       </div>
     </div>`;
 
-    document.getElementById('master-view').innerHTML = html;
+    document.getElementById('master-settings-tab').innerHTML = html;
+  }
+
+  renderMasterInfo() {
+    let html = '';
+
+    // アプリ情報
+    html += `<div class="master-section">
+      <div class="master-section-title">アプリ情報</div>
+      <div class="app-info-block">
+        <div class="app-info-row">
+          <span class="app-info-label">アプリ名</span>
+          <span class="app-info-value">家計簿</span>
+        </div>
+        <div class="app-info-row">
+          <span class="app-info-label">現在バージョン</span>
+          <span class="app-info-value">${APP_VERSION}</span>
+        </div>
+      </div>
+    </div>`;
+
+    // バージョン履歴
+    html += `<div class="master-section">
+      <div class="master-section-title">最新の更新内容</div>
+      <div class="version-history">`;
+
+    const versionInfo = VERSION_INFO[APP_VERSION];
+    if (versionInfo) {
+      html += `<div class="version-item">
+        <div class="version-header">バージョン ${APP_VERSION} (${versionInfo.date})</div>
+        <ul class="version-changes">`;
+      versionInfo.changes.forEach(change => {
+        html += `<li>${change}</li>`;
+      });
+      html += `</ul>
+      </div>`;
+    }
+
+    html += `</div>
+    </div>`;
+
+    document.getElementById('master-info-tab').innerHTML = html;
   }
 
   addCat(type) {
@@ -1666,10 +1834,22 @@ class KakeiboApp {
         const match = html.match(/const APP_VERSION = '([^']+)'/);
         const latestVersion = match ? match[1] : null;
         if (latestVersion && latestVersion !== APP_VERSION) {
-          document.getElementById('updateModal').classList.add('show');
+          this.showUpdateModal(latestVersion);
         }
       })
       .catch(() => {});
+  }
+
+  showUpdateModal(version) {
+    const versionInfo = VERSION_INFO[version];
+    let changesHtml = '<strong>更新内容：</strong><br>';
+    if (versionInfo && versionInfo.changes) {
+      versionInfo.changes.forEach(change => {
+        changesHtml += `• ${change}<br>`;
+      });
+    }
+    document.getElementById('updateChanges').innerHTML = changesHtml;
+    document.getElementById('updateModal').classList.add('show');
   }
 
   updateApp() {
