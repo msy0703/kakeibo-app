@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#1a1a2e">
   <title>家計簿</title>
   <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap');
 
@@ -1102,6 +1103,7 @@
 <!-- TOOLBAR -->
 <div class="toolbar">
   <div class="toolbar-side-buttons">
+    <button class="toolbar-btn" onclick="app.switchTab('list')" title="ホーム">🏠</button>
     <button class="toolbar-btn" onclick="app.switchTab('master')" title="設定">⚙️</button>
     <button class="toolbar-btn" onclick="app.openExportImport()" title="共有">📤</button>
   </div>
@@ -1119,6 +1121,7 @@
     <div class="modal-title">データ共有</div>
     <div class="modal-content">
       <button class="modal-btn" style="width:100%;margin-bottom:8px" onclick="app.exportData()">📥 ダウンロード</button>
+      <button class="modal-btn" style="width:100%;margin-bottom:8px" onclick="app.showQRCode()">🔗 QRコード共有</button>
       <button class="modal-btn" style="width:100%;margin-bottom:8px" onclick="app.importData()">📤 読み込み</button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="app.handleImportFile(event)">
     </div>
@@ -1217,10 +1220,35 @@
   </div>
 </div>
 
+<!-- QR CODE MODAL OVERLAY -->
+<div id="qrCodeModalOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:998;display:none" onclick="app.closeQRCode(event)"></div>
+
+<!-- QR CODE MODAL -->
+<div id="qrCodeModal" class="update-modal" style="max-width:350px">
+  <div class="update-modal-title">🔗 QRコード共有</div>
+  <div class="update-modal-message" style="margin-bottom:16px">このQRコードを読み込むと、データがインポートできます</div>
+  <div id="qrCodeContainer" style="display:flex;justify-content:center;align-items:center;margin:20px 0;min-height:260px">
+    <div style="color:var(--text-muted);font-size:14px">QRコード生成中...</div>
+  </div>
+  <div id="qrCodeLink" style="margin:12px 0;padding:12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);word-break:break-all;font-size:12px;max-height:100px;overflow-y:auto;color:var(--text-secondary)"></div>
+  <div class="update-modal-buttons">
+    <button class="primary" onclick="app.copyQRLink()">リンクをコピー</button>
+    <button onclick="app.closeQRCode()">閉じる</button>
+  </div>
+</div>
+
 <script>
-const APP_VERSION = '20260330-010';
+const APP_VERSION = '20260329-001';
 
 const VERSION_INFO = {
+  '20260329-001': {
+    date: '2026-03-29',
+    changes: [
+      'QRコード共有機能を復活',
+      'QRコードからのURLインポート機能を実装',
+      'データ共有モーダルにQRコード表示ボタンを追加'
+    ]
+  },
   '20260330-010': {
     date: '2026-03-30',
     changes: [
@@ -1308,7 +1336,8 @@ class KakeiboApp {
       selectedType: 'expense',
       selectedCat: 'food',
       editingId: null,
-      pendingImport: null
+      pendingImport: null,
+      currentQRLink: null
     };
 
     this.init();
@@ -1320,6 +1349,25 @@ class KakeiboApp {
     this.setupEventListeners();
     this.checkForUpdates();
     setInterval(() => this.checkForUpdates(), 60000);
+
+    // Check for URL import parameter
+    const params = new URLSearchParams(window.location.search);
+    const importData = params.get('import');
+    if (importData) {
+      try {
+        const json = decodeURIComponent(escape(atob(importData)));
+        const data = JSON.parse(json);
+        if (data.txns && Array.isArray(data.txns)) {
+          this.ui.pendingImport = data;
+          document.getElementById('importItemCount').textContent = data.txns.length;
+          document.getElementById('importConfirmOverlay').classList.add('open');
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (err) {
+        console.log('Import from URL failed:', err);
+      }
+    }
   }
 
   registerServiceWorker() {
@@ -1479,6 +1527,7 @@ class KakeiboApp {
             <div class="txn-info">
               <div class="txn-memo">${t.memo || '（メモなし）'}</div>
               <div class="txn-cat">${cat.name}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${this.state.userName}</div>
             </div>
             <div class="txn-amount">
               ${t.type === 'income' ? '+' : '-'}${this.formatYen(t.amount)}
@@ -1737,6 +1786,7 @@ class KakeiboApp {
           <span class="app-info-value">${APP_VERSION}</span>
         </div>
       </div>
+      <button class="modal-btn primary" style="width:100%;margin-top:12px" onclick="app.checkForUpdatesManual()">🔄 バージョンをチェック</button>
     </div>`;
 
     // バージョン履歴
@@ -2039,6 +2089,26 @@ class KakeiboApp {
       .catch(err => console.log('Update check error:', err));
   }
 
+  checkForUpdatesManual() {
+    this.showToast('チェック中...');
+    fetch(window.location.href + '?t=' + Date.now())
+      .then(r => r.text())
+      .then(html => {
+        const match = html.match(/const APP_VERSION = '([^']+)'/);
+        const latestVersion = match ? match[1] : null;
+        if (latestVersion && latestVersion !== APP_VERSION) {
+          console.log('New version available:', latestVersion);
+          this.showUpdateModal(latestVersion);
+        } else {
+          this.showToast('最新バージョンです');
+        }
+      })
+      .catch(err => {
+        console.log('Update check error:', err);
+        this.showToast('チェックに失敗しました');
+      });
+  }
+
   showUpdateModal(version) {
     console.log('Show update modal for version:', version);
     const updateModal = document.getElementById('updateModal');
@@ -2079,6 +2149,74 @@ class KakeiboApp {
       if (overlay) overlay.style.display = 'none';
     }
     document.getElementById('updateModal').classList.remove('show');
+  }
+
+  showQRCode() {
+    const data = {
+      version: 1,
+      exportDate: new Date().toISOString(),
+      txns: this.state.txns,
+      budgets: this.state.budgets
+    };
+
+    const json = JSON.stringify(data);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    const baseUrl = window.location.href.split('?')[0];
+    const qrLink = `${baseUrl}?import=${encoded}`;
+
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
+    const qrCodeLink = document.getElementById('qrCodeLink');
+    const qrCodeModal = document.getElementById('qrCodeModal');
+    const qrCodeModalOverlay = document.getElementById('qrCodeModalOverlay');
+
+    if (!qrCodeContainer || !qrCodeLink || !qrCodeModal || !qrCodeModalOverlay) {
+      console.log('QR Code modal elements not found');
+      return;
+    }
+
+    // Clear previous QR code
+    qrCodeContainer.innerHTML = '';
+
+    // Generate QR code
+    new QRCode(qrCodeContainer, {
+      text: qrLink,
+      width: 240,
+      height: 240,
+      colorDark: '#e8e8f0',
+      colorLight: '#0d0d1a',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    // Display link
+    qrCodeLink.textContent = qrLink;
+    this.ui.currentQRLink = qrLink;
+
+    // Show modal
+    qrCodeModal.classList.add('show');
+    qrCodeModalOverlay.style.display = 'block';
+
+    // Close export/import modal
+    document.getElementById('exportImportOverlay').classList.remove('open');
+  }
+
+  closeQRCode(event) {
+    if (event && event.target.id === 'qrCodeModalOverlay') {
+      const overlay = document.getElementById('qrCodeModalOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+    const qrCodeModal = document.getElementById('qrCodeModal');
+    if (qrCodeModal) qrCodeModal.classList.remove('show');
+  }
+
+  copyQRLink() {
+    const link = this.ui.currentQRLink;
+    if (link) {
+      navigator.clipboard.writeText(link).then(() => {
+        this.showToast('リンクをコピーしました');
+      }).catch(() => {
+        this.showToast('コピーに失敗しました');
+      });
+    }
   }
 }
 
