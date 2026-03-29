@@ -171,26 +171,48 @@
     /* ── LIST VIEW ── */
     .list-view { padding: 12px 16px; }
 
-    .date-group { margin-bottom: 16px; }
+    .date-group { margin-bottom: 16px; padding-bottom: 0; }
 
     .date-group-header {
-      font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
-      padding-left: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
+      margin-bottom: 8px;
       cursor: pointer;
+      transition: background 0.15s;
       user-select: none;
     }
 
-    .date-group-header::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
+    .date-group-header:active {
+      background: var(--bg3);
+    }
+
+    .date-group-header-date {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .date-group-header-chevron {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+      transition: transform 0.2s;
+    }
+
+    .date-group-header.collapsed .date-group-header-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .date-group-header-summary {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: 'DM Mono', monospace;
+      margin-left: auto;
     }
 
     .txn-item {
@@ -243,7 +265,7 @@
     .date-summary {
       font-size: 11px;
       color: var(--text-secondary);
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       padding: 0 4px;
       font-family: 'DM Mono', monospace;
     }
@@ -1090,9 +1112,17 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-006';
+const APP_VERSION = '20260330-007';
 
 const VERSION_INFO = {
+  '20260330-007': {
+    date: '2026-03-30',
+    changes: [
+      '明細のトグル部分をカード表示に変更',
+      '日付グループヘッダーのスタイルを向上',
+      'chevron アイコンで開閉状態を表示'
+    ]
+  },
   '20260330-006': {
     date: '2026-03-30',
     changes: [
@@ -1249,6 +1279,18 @@ class KakeiboApp {
     });
   }
 
+  toggleDateGroup(element, date) {
+    const contentDiv = element.nextElementSibling;
+    const isHidden = contentDiv.style.display === 'none';
+    contentDiv.style.display = isHidden ? 'block' : 'none';
+    element.classList.toggle('collapsed', !isHidden);
+    if (isHidden) {
+      localStorage.removeItem(`collapsed_${date}`);
+    } else {
+      localStorage.setItem(`collapsed_${date}`, '1');
+    }
+  }
+
   renderList() {
     const txns = this.getMonthTxns();
     const grouped = {};
@@ -1269,13 +1311,16 @@ class KakeiboApp {
         const dayIncome = dateTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
         const dayExpense = dateTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
         const dayBalance = dayIncome - dayExpense;
+        const isExpanded = !localStorage.getItem(`collapsed_${date}`);
 
         html += `<div class="date-group">
-          <div class="date-group-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-            ${new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })}
-            <span style="margin-left:auto;font-size:11px">${dayIncome > 0 ? '+' + this.formatYen(dayIncome) : ''} ${dayExpense > 0 ? '-' + this.formatYen(dayExpense) : ''}</span>
+          <div class="date-group-header ${!isExpanded ? 'collapsed' : ''}" onclick="app.toggleDateGroup(this, '${date}')">
+            <div class="date-group-header-date">
+              ${new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })}
+            </div>
+            <div class="date-group-header-chevron">▼</div>
           </div>
-          <div>
+          <div style="display:${isExpanded ? 'block' : 'none'}">
             <div class="date-summary">残高: ${this.formatYen(dayBalance)}</div>`;
 
         dateTxns.forEach(t => {
