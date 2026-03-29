@@ -165,7 +165,7 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-      padding-bottom: 70px;
+      padding-bottom: 100px;
     }
 
     /* ── LIST VIEW ── */
@@ -673,14 +673,20 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 60px;
+      height: 80px;
       padding-bottom: var(--safe-bottom);
       background: var(--bg);
       border-top: 1px solid var(--border);
       display: flex;
-      justify-content: space-around;
+      justify-content: space-between;
       align-items: center;
+      padding: 0 20px;
       z-index: 100;
+    }
+
+    .toolbar-side-buttons {
+      display: flex;
+      gap: 16px;
     }
 
     .toolbar-btn {
@@ -699,6 +705,21 @@
 
     .toolbar-btn:active {
       color: var(--accent-blue);
+    }
+
+    .toolbar-btn.fab {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-pink));
+      border-radius: 50%;
+      color: white;
+      font-size: 32px;
+      box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+    }
+
+    .toolbar-btn.fab:active {
+      opacity: 0.9;
+      color: white;
     }
 
     /* ── TOAST ── */
@@ -813,7 +834,6 @@
     <div class="tab active" onclick="app.switchTab('list')">明細</div>
     <div class="tab" onclick="app.switchTab('chart')">グラフ</div>
     <div class="tab" onclick="app.switchTab('budget')">予算</div>
-    <div class="tab" onclick="app.switchTab('master')">⚙️</div>
   </div>
 
   <!-- CONTENT -->
@@ -834,10 +854,12 @@
 
 <!-- TOOLBAR -->
 <div class="toolbar">
-  <button class="toolbar-btn" onclick="app.switchTab('master')" title="設定">⚙️</button>
-  <button class="toolbar-btn" onclick="app.openExportImport()" title="共有">📤</button>
-  <button class="toolbar-btn" onclick="app.openScan()" title="スキャン">🧾</button>
-  <button class="toolbar-btn" onclick="app.openModal()" title="追加">＋</button>
+  <div class="toolbar-side-buttons">
+    <button class="toolbar-btn" onclick="app.switchTab('master')" title="設定">⚙️</button>
+    <button class="toolbar-btn" onclick="app.openExportImport()" title="共有">📤</button>
+    <button class="toolbar-btn" onclick="app.openScan()" title="スキャン">🧾</button>
+  </div>
+  <button class="toolbar-btn fab" onclick="app.openModal()" title="追加">＋</button>
 </div>
 
 <!-- EXPORT/IMPORT MODAL -->
@@ -941,7 +963,7 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-002';
+const APP_VERSION = '20260330-003';
 
 const CATEGORIES = {
   expense: [
@@ -1049,7 +1071,7 @@ class KakeiboApp {
   switchTab(tab) {
     this.ui.currentTab = tab;
     document.querySelectorAll('.tab').forEach((el, i) => {
-      el.classList.toggle('active', ['list', 'chart', 'budget', 'master'][i] === tab);
+      el.classList.toggle('active', ['list', 'chart', 'budget'][i] === tab);
     });
     document.querySelectorAll('.view').forEach(el => el.style.display = 'none');
     document.getElementById(`${tab}-view`).style.display = 'block';
