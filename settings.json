@@ -1,0 +1,143 @@
+{
+  "project": {
+    "name": "家計簿APP",
+    "description": "家族の家計管理を効率化するWebアプリケーション",
+    "phase": "Phase 1 - 家族用プロトタイプ開発",
+    "repository": "private"
+  },
+
+  "team": {
+    "size": 5,
+    "language": "ja",
+    "reviewRequired": true,
+    "minReviewers": 2
+  },
+
+  "environment": {
+    "nodeVersion": "18.0.0",
+    "packageManager": "pnpm",
+    "packageManagerVersion": "8.0.0"
+  },
+
+  "frontend": {
+    "framework": "React 18+",
+    "language": "TypeScript",
+    "buildTool": "Vite",
+    "styling": "Tailwind CSS",
+    "stateManagement": "Zustand",
+    "uiLibrary": "Material-UI or Headless UI",
+    "tsconfig": {
+      "strict": true,
+      "target": "ES2020",
+      "module": "ESNext"
+    }
+  },
+
+  "database": {
+    "dbms": "SQLite",
+    "environment": {
+      "pwa": "sql.js",
+      "desktop": "better-sqlite3"
+    },
+    "orm": "Prisma or raw SQL"
+  },
+
+  "testing": {
+    "unit": "Vitest",
+    "ui": "React Testing Library",
+    "e2e": "Playwright or Cypress",
+    "coverageTarget": 80,
+    "commands": {
+      "test": "pnpm test",
+      "testCoverage": "pnpm test --coverage",
+      "e2e": "pnpm test:e2e"
+    }
+  },
+
+  "codeQuality": {
+    "linter": "ESLint",
+    "formatter": "Prettier",
+    "preCommitHook": true,
+    "commands": {
+      "lint": "pnpm lint",
+      "format": "pnpm format",
+      "typeCheck": "pnpm type-check"
+    }
+  },
+
+  "ci": {
+    "provider": "GitHub Actions",
+    "autoTest": true,
+    "autoLint": true,
+    "mainBranchProtected": true,
+    "prRequirements": {
+      "ciPass": true,
+      "reviewApproval": true,
+      "minReviewers": 2
+    }
+  },
+
+  "naming": {
+    "component": "PascalCase",
+    "function": "camelCase",
+    "variable": "camelCase",
+    "constant": "UPPER_SNAKE_CASE",
+    "file": "kebab-case"
+  },
+
+  "fileStructure": {
+    "source": "src/",
+    "tests": "tests/",
+    "public": "public/",
+    "directories": {
+      "components": "src/components",
+      "pages": "src/pages",
+      "hooks": "src/hooks",
+      "services": "src/services",
+      "store": "src/store",
+      "utils": "src/utils",
+      "types": "src/types",
+      "styles": "src/styles"
+    }
+  },
+
+  "security": {
+    "requirements": [
+      "XSS対策必須",
+      "SQLインジェクション対策必須",
+      "家計情報機密性重視"
+    ]
+  },
+
+  "performance": {
+    "goals": [
+      "SQLiteクエリ最適化",
+      "React再レンダー最小化",
+      "バンドルサイズ最小化"
+    ]
+  },
+
+  "accessibility": {
+    "wcagLevel": "WCAG 2.1 Level AA以上",
+    "target": "全ユーザーをサポート"
+  },
+
+  "release": {
+    "phase1": "家族で1ヶ月以上運用、フィードバック収集",
+    "improvements": "フィードバック反映、テスト追加、レビュー実施",
+    "publicRelease": "安定性・使い勝手・セキュリティを総合判定"
+  },
+
+  "bypassPermissions": {
+    "autoRunTasks": [
+      "pnpm test",
+      "pnpm test --coverage",
+      "pnpm lint",
+      "pnpm format",
+      "pnpm type-check",
+      "pnpm test:e2e",
+      "pnpm build"
+    ],
+    "description": "開発タスクの自動実行時にパーミッション確認をバイパス"
+  }
+}

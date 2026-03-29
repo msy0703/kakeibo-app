@@ -136,6 +136,47 @@
     .amount.balance { color: var(--accent-blue); }
     .amount.negative { color: var(--expense); }
 
+    .summary-details {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .category-summary-card {
+      background: rgba(79, 195, 247, 0.08);
+      border: 1px solid rgba(79, 195, 247, 0.2);
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .category-summary-card:active {
+      background: rgba(79, 195, 247, 0.12);
+    }
+
+    .category-summary-icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .category-summary-name {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .category-summary-amount {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--expense);
+    }
+
     /* ── TABS ── */
     .tabs {
       display: flex;
@@ -1067,6 +1108,7 @@
         <div class="amount balance" id="balanceAmount">¥0</div>
       </div>
     </div>
+    <div class="summary-details" id="summaryDetails"></div>
   </div>
 
   <!-- TABS -->
@@ -1850,6 +1892,31 @@ class KakeiboApp {
     document.getElementById('expenseAmount').textContent = this.formatYen(expense);
     document.getElementById('balanceAmount').textContent = this.formatYen(balance);
     document.getElementById('monthLabel').textContent = `${this.state.currentYear}年${this.state.currentMonth}月`;
+
+    // カテゴリTOP3を計算
+    const catTotals = {};
+    txns.filter(t => t.type === 'expense').forEach(t => {
+      catTotals[t.cat] = (catTotals[t.cat] || 0) + t.amount;
+    });
+
+    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    const top3 = sorted.slice(0, 3);
+
+    let html = '';
+    if (top3.length > 0) {
+      top3.forEach(([catId, amt]) => {
+        const cat = this.getCategories('expense').find(c => c.id === catId) || { icon: '📦', name: '?' };
+        html += `<div class="category-summary-card">
+          <div class="category-summary-icon">${cat.icon}</div>
+          <div class="category-summary-name">${cat.name}</div>
+          <div class="category-summary-amount">${this.formatYen(amt)}</div>
+        </div>`;
+      });
+    } else {
+      html = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-muted);font-size:13px">支出がありません</div>';
+    }
+
+    document.getElementById('summaryDetails').innerHTML = html;
   }
 
   setMasterTab(tab) {
