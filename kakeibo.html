@@ -686,7 +686,8 @@
 
     .toolbar-side-buttons {
       display: flex;
-      gap: 16px;
+      gap: 20px;
+      width: auto;
     }
 
     .toolbar-btn {
@@ -707,6 +708,13 @@
       color: var(--accent-blue);
     }
 
+    .toolbar-fab-wrapper {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
     .toolbar-btn.fab {
       width: 64px;
       height: 64px;
@@ -715,6 +723,9 @@
       color: white;
       font-size: 32px;
       box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
     }
 
     .toolbar-btn.fab:active {
@@ -857,9 +868,13 @@
   <div class="toolbar-side-buttons">
     <button class="toolbar-btn" onclick="app.switchTab('master')" title="設定">⚙️</button>
     <button class="toolbar-btn" onclick="app.openExportImport()" title="共有">📤</button>
+  </div>
+  <div class="toolbar-fab-wrapper">
+    <button class="toolbar-btn fab" onclick="app.openModal()" title="追加">＋</button>
+  </div>
+  <div class="toolbar-side-buttons">
     <button class="toolbar-btn" onclick="app.openScan()" title="スキャン">🧾</button>
   </div>
-  <button class="toolbar-btn fab" onclick="app.openModal()" title="追加">＋</button>
 </div>
 
 <!-- EXPORT/IMPORT MODAL -->
@@ -963,7 +978,7 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-003';
+const APP_VERSION = '20260330-004';
 
 const CATEGORIES = {
   expense: [
