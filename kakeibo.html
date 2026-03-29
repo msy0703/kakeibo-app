@@ -195,8 +195,8 @@
 
     .date-group-header-info {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 8px;
       flex: 1;
     }
 
@@ -208,7 +208,7 @@
     }
 
     .date-group-header-weekday {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--text-secondary);
       font-weight: 500;
     }
@@ -1177,7 +1177,7 @@
 <div id="updateModal" class="update-modal">
   <div class="update-modal-title">📲 アップデート</div>
   <div class="update-modal-message">新しいバージョンが利用可能です</div>
-  <div id="updateChanges" class="update-modal-message" style="font-size:12px;color:var(--text-secondary);background:var(--bg3);padding:12px;border-radius:8px;margin:12px 0;max-height:120px;overflow-y:auto"></div>
+  <div id="updateChanges" style="font-size:12px;color:var(--text-primary);background:var(--bg3);padding:12px;border-radius:8px;margin:12px 0;max-height:140px;overflow-y:auto;line-height:1.6"></div>
   <div class="update-modal-buttons">
     <button class="primary" onclick="app.updateApp()">更新</button>
     <button onclick="app.closeUpdateModal()">スキップ</button>
@@ -1185,9 +1185,17 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-008';
+const APP_VERSION = '20260330-009';
 
 const VERSION_INFO = {
+  '20260330-009': {
+    date: '2026-03-30',
+    changes: [
+      '日付と曜日を横並びで表示',
+      '年別グラフを月を縦列で見やすく',
+      'アップデートモーダルの内容表示を修正'
+    ]
+  },
   '20260330-008': {
     date: '2026-03-30',
     changes: [
@@ -1524,29 +1532,29 @@ class KakeiboApp {
     });
 
     const catList = Array.from(allCats);
-    html += '<table style="width:100%;font-size:11px;border-collapse:collapse">';
-    html += '<tr><th style="padding:6px;text-align:left;border-bottom:1px solid var(--border)">カテゴリ</th>';
+    html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;font-size:11px;border-collapse:collapse;min-width:600px">';
+    html += '<tr><th style="padding:8px 6px;text-align:left;border-bottom:2px solid var(--border);position:sticky;left:0;background:var(--bg);min-width:80px">カテゴリ</th>';
     for (let m = 1; m <= 12; m++) {
-      html += `<th style="padding:6px;text-align:right;border-bottom:1px solid var(--border)">${m}月</th>`;
+      html += `<th style="padding:8px 4px;text-align:center;border-bottom:2px solid var(--border);min-width:60px;font-weight:600">${m}月</th>`;
     }
     html += '</tr>';
 
     catList.forEach(catId => {
       const cat = [...this.getCategories('income'), ...this.getCategories('expense')].find(c => c.id === catId) || { icon: '📦', name: '?' };
-      html += `<tr><td style="padding:6px;border-bottom:1px solid var(--border)">${cat.icon} ${cat.name}</td>`;
+      html += `<tr><td style="padding:8px 6px;border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg3);min-width:80px;font-weight:500">${cat.icon} ${cat.name}</td>`;
       for (let m = 1; m <= 12; m++) {
         const amt = monthData[m].categories[catId] || 0;
-        html += `<td style="padding:6px;text-align:right;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:10px">${amt ? this.formatYen(amt) : '-'}</td>`;
+        html += `<td style="padding:8px 4px;text-align:right;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:10px;min-width:60px">${amt ? this.formatYen(amt) : '-'}</td>`;
       }
       html += '</tr>';
     });
 
-    html += '<tr style="font-weight:600;border-top:2px solid var(--border)"><td style="padding:6px">合計</td>';
+    html += '<tr style="font-weight:600;border-top:2px solid var(--border)"><td style="padding:8px 6px;background:var(--bg3);position:sticky;left:0">合計</td>';
     for (let m = 1; m <= 12; m++) {
       const total = (monthData[m].income || 0) - (monthData[m].expense || 0);
-      html += `<td style="padding:6px;text-align:right;color:${total >= 0 ? 'var(--income)' : 'var(--expense)'};font-family:'DM Mono',monospace">${this.formatYen(total)}</td>`;
+      html += `<td style="padding:8px 4px;text-align:right;color:${total >= 0 ? 'var(--income)' : 'var(--expense)'};font-family:'DM Mono',monospace;min-width:60px">${this.formatYen(total)}</td>`;
     }
-    html += '</tr></table></div>';
+    html += '</tr></table></div></div>';
 
     document.getElementById('chart-year').innerHTML = html;
   }
@@ -1979,21 +1987,27 @@ class KakeiboApp {
         const match = html.match(/const APP_VERSION = '([^']+)'/);
         const latestVersion = match ? match[1] : null;
         if (latestVersion && latestVersion !== APP_VERSION) {
-          this.showUpdateModal(latestVersion);
+          setTimeout(() => this.showUpdateModal(latestVersion), 500);
         }
       })
-      .catch(() => {});
+      .catch(err => console.log('Update check error:', err));
   }
 
   showUpdateModal(version) {
     const versionInfo = VERSION_INFO[version];
-    let changesHtml = '<strong>更新内容：</strong><br>';
+    let changesHtml = '';
     if (versionInfo && versionInfo.changes) {
+      changesHtml = '<strong style="display:block;margin-bottom:8px;">更新内容：</strong>';
       versionInfo.changes.forEach(change => {
-        changesHtml += `• ${change}<br>`;
+        changesHtml += `<div style="margin-bottom:6px;">• ${change}</div>`;
       });
+    } else {
+      changesHtml = '<div>新機能が追加されました</div>';
     }
-    document.getElementById('updateChanges').innerHTML = changesHtml;
+    const changesEl = document.getElementById('updateChanges');
+    if (changesEl) {
+      changesEl.innerHTML = changesHtml;
+    }
     document.getElementById('updateModal').classList.add('show');
   }
 
