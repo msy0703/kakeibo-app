@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260329-003';
+const CACHE_VERSION = '20260329-004';
 const CACHE = 'kakeibo-' + CACHE_VERSION;
 
 self.addEventListener('install', (e) => {
@@ -8,7 +8,8 @@ self.addEventListener('install', (e) => {
       cache.addAll([
         './kakeibo.html',
         'https://unpkg.com/dexie@4/dist/dexie.min.js',
-        'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+        'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+        'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'
       ]).catch(err => {
         console.log('Cache add error:', err);
       })

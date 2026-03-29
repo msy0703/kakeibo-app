@@ -12,6 +12,7 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/dexie@4/dist/dexie.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap');
 
@@ -973,6 +974,200 @@
       color: white;
     }
 
+    /* ── SCAN ── */
+    .scan-preview-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .scan-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scan-video-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .scan-source-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .scan-source-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .scan-source-btn span {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .scan-source-btn:active { background: var(--border); }
+
+    .scan-shutter-btn {
+      display: block;
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      border: 4px solid var(--text-primary);
+      color: var(--bg);
+      font-size: 32px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .scan-shutter-btn:active { transform: scale(0.93); }
+
+    .scan-progress-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0 16px;
+    }
+
+    .scan-preview-thumb {
+      width: 120px;
+      height: 90px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+    }
+
+    .scan-preview-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scan-progress-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .scan-progress-bar-track {
+      width: 100%;
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .scan-progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-pink));
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .scan-progress-pct {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .scan-confirm-thumb-wrap {
+      width: 100%;
+      max-height: 180px;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-confirm-thumb {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+    }
+
+    .scan-amount-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+      min-height: 36px;
+    }
+
+    .scan-amount-chip {
+      padding: 6px 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .scan-amount-chip.selected {
+      background: rgba(79, 195, 247, 0.15);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .scan-amount-chip:active { background: var(--border); }
+
+    .scan-raw-details {
+      margin-top: 8px;
+    }
+
+    .scan-raw-summary {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .scan-raw-text {
+      margin-top: 8px;
+      padding: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
     /* ── TOAST ── */
     .toast {
       position: fixed;
@@ -1246,6 +1441,99 @@
   </div>
 </div>
 
+<!-- SCAN MODAL -->
+<div class="modal-overlay" id="scanOverlay" onclick="app.closeOverlay(event, 'scanOverlay')">
+  <div class="modal">
+    <div class="modal-title">レシートスキャン</div>
+
+    <!-- Step 1: 選択画面 -->
+    <div class="modal-content" id="scanStep1">
+      <div class="scan-preview-wrap" id="scanPreviewWrap">
+        <video id="scanVideo" class="scan-video" autoplay playsinline></video>
+        <canvas id="scanVideoOverlay" class="scan-video-overlay"></canvas>
+      </div>
+
+      <div class="scan-source-buttons">
+        <button class="scan-source-btn" onclick="app.startCamera()">
+          📷<span>カメラで撮影</span>
+        </button>
+        <button class="scan-source-btn" onclick="app.openGallery()">
+          🖼️<span>ギャラリーから選択</span>
+        </button>
+      </div>
+      <input type="file" id="scanFileInput" accept="image/*" style="display:none"
+             onchange="app.handleScanFile(event)">
+
+      <button class="scan-shutter-btn" id="scanShutterBtn"
+              style="display:none" onclick="app.capturePhoto()">
+        ⬤
+      </button>
+    </div>
+
+    <!-- Step 2: OCR処理中 -->
+    <div class="modal-content" id="scanStep2" style="display:none">
+      <div class="scan-progress-wrap">
+        <div class="scan-preview-thumb" id="scanThumb"></div>
+        <div class="scan-progress-label" id="scanProgressLabel">OCR処理中...</div>
+        <div class="scan-progress-bar-track">
+          <div class="scan-progress-bar-fill" id="scanProgressBarFill"></div>
+        </div>
+        <div class="scan-progress-pct" id="scanProgressPct">0%</div>
+      </div>
+    </div>
+
+    <div class="modal-buttons">
+      <button class="modal-btn" onclick="app.closeScan()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCAN CONFIRM MODAL -->
+<div class="modal-overlay" id="scanConfirmOverlay" onclick="app.closeOverlay(event, 'scanConfirmOverlay')">
+  <div class="modal">
+    <div class="modal-title">スキャン結果を確認</div>
+    <div class="modal-content">
+      <div class="scan-confirm-thumb-wrap">
+        <img id="scanConfirmThumb" class="scan-confirm-thumb" src="" alt="スキャン画像">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">抽出された金額候補</label>
+        <div id="scanAmountList" class="scan-amount-list"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">確定金額</label>
+        <input type="number" id="scanConfirmAmount" class="form-input" placeholder="0" min="0">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">日付</label>
+        <input type="date" id="scanConfirmDate" class="form-input">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">メモ（店舗名など）</label>
+        <input type="text" id="scanConfirmMemo" class="form-input" placeholder="任意">
+      </div>
+
+      <details class="scan-raw-details">
+        <summary class="scan-raw-summary">OCR 生テキストを表示</summary>
+        <pre id="scanRawText" class="scan-raw-text"></pre>
+      </details>
+    </div>
+
+    <div class="modal-buttons">
+      <button class="modal-btn primary" onclick="app.applyScanResult()">
+        取引フォームへ
+      </button>
+      <button class="modal-btn" onclick="app.closeScanConfirm()">
+        キャンセル
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
 
@@ -1288,9 +1576,16 @@ db.version(1).stores({
   settings: '&key'
 });
 
-const APP_VERSION = '20260329-003';
+const APP_VERSION = '20260329-004';
 
 const VERSION_INFO = {
+  '20260329-004': {
+    date: '2026-03-29',
+    changes: [
+      'レシートOCRスキャン機能を追加',
+      'カメラ撮影またはギャラリー画像から金額・日付を自動抽出'
+    ]
+  },
   '20260329-003': {
     date: '2026-03-29',
     changes: [
@@ -1464,6 +1759,8 @@ class KakeiboApp {
     };
 
     this.collapsedDates = {};
+
+    this.scan = {};
 
     this.initAsync();
   }
@@ -2334,7 +2631,228 @@ class KakeiboApp {
   }
 
   openScan() {
-    this.showToast('レシートスキャン機能は準備中です');
+    this.scan = { stream: null, capturedDataUrl: null, extractedAmounts: [] };
+    document.getElementById('scanStep1').style.display = 'block';
+    document.getElementById('scanStep2').style.display = 'none';
+    document.getElementById('scanShutterBtn').style.display = 'none';
+    document.getElementById('scanOverlay').classList.add('open');
+  }
+
+  async startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+      });
+      this.scan.stream = stream;
+      const video = document.getElementById('scanVideo');
+      video.srcObject = stream;
+      await video.play();
+      document.getElementById('scanShutterBtn').style.display = 'block';
+    } catch (err) {
+      this.showToast('カメラへのアクセスを許可してください');
+      console.log('Camera error:', err);
+    }
+  }
+
+  stopCamera() {
+    if (this.scan && this.scan.stream) {
+      this.scan.stream.getTracks().forEach(t => t.stop());
+      this.scan.stream = null;
+    }
+  }
+
+  capturePhoto() {
+    const video = document.getElementById('scanVideo');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    this.stopCamera();
+    this.runOCR(dataUrl);
+  }
+
+  openGallery() {
+    document.getElementById('scanFileInput').click();
+  }
+
+  handleScanFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = '';
+    const reader = new FileReader();
+    reader.onload = (e) => this.runOCR(e.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  async runOCR(dataUrl) {
+    this.scan.capturedDataUrl = dataUrl;
+    document.getElementById('scanStep1').style.display = 'none';
+    document.getElementById('scanStep2').style.display = 'block';
+
+    const thumbDiv = document.getElementById('scanThumb');
+    thumbDiv.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover">`;
+
+    this._updateProgress(0, '解析準備中...');
+
+    try {
+      const result = await Tesseract.recognize(dataUrl, 'jpn+eng', {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            this._updateProgress(m.progress, 'テキスト認識中...');
+          } else if (m.status === 'loading tesseract core') {
+            this._updateProgress(m.progress * 0.3, 'エンジン読み込み中...');
+          } else if (m.status === 'initializing tesseract') {
+            this._updateProgress(0.3 + m.progress * 0.2, '初期化中...');
+          } else if (m.status === 'loading language traineddata') {
+            this._updateProgress(0.5 + m.progress * 0.3, '言語データ読み込み中...');
+          }
+        }
+      });
+
+      this._updateProgress(1, '完了');
+      const text = result.data.text;
+
+      const amounts = this._extractAmounts(text);
+      const date = this._extractDate(text);
+      const memo = this._extractMemo(text);
+
+      this.scan.extractedAmounts = amounts;
+      this._openScanConfirm(dataUrl, amounts, date, memo, text);
+    } catch (err) {
+      console.log('OCR error:', err);
+      this.showToast('OCR処理に失敗しました');
+      this.closeScan();
+    }
+  }
+
+  _updateProgress(ratio, label) {
+    const pct = Math.round(ratio * 100);
+    document.getElementById('scanProgressBarFill').style.width = pct + '%';
+    document.getElementById('scanProgressPct').textContent = pct + '%';
+    document.getElementById('scanProgressLabel').textContent = label;
+  }
+
+  _extractAmounts(text) {
+    const patterns = [
+      /合[計算]\s*[：:￥¥\\]?\s*([\d,，]+)/g,
+      /[総合][計額]\s*[：:￥¥\\]?\s*([\d,，]+)/g,
+      /(?:お会計|お支払|ご請求)[^\d]*([\d,，]+)/g,
+      /[Tt]otal\s*[：:\$￥¥\\]?\s*([\d,，]+)/g,
+      /[Aa]mount\s*[：:\$￥¥\\]?\s*([\d,，]+)/g,
+      /[￥¥\\]\s*([\d,，]+)/g,
+      /([\d,，]+)\s*円/g
+    ];
+
+    const found = new Set();
+    for (const re of patterns) {
+      let m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        const num = parseInt(m[1].replace(/[,，]/g, ''), 10);
+        if (!isNaN(num) && num >= 10 && num <= 9999999) {
+          found.add(num);
+        }
+      }
+    }
+
+    return [...found].sort((a, b) => b - a).slice(0, 8);
+  }
+
+  _extractDate(text) {
+    const today = new Date();
+    const patterns = [
+      /(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/,
+      /(\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/,
+      /(\d{1,2})[\/\-](\d{1,2})/
+    ];
+
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (m) {
+        try {
+          if (m.length === 4) {
+            const year = m[1].length === 2 ? 2000 + parseInt(m[1]) : parseInt(m[1]);
+            const month = parseInt(m[2]);
+            const day = parseInt(m[3]);
+            if (year >= 2020 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+              return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            }
+          }
+        } catch (e) { /* skip */ }
+      }
+    }
+
+    return today.toISOString().split('T')[0];
+  }
+
+  _extractMemo(text) {
+    const lines = text.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length >= 2 && l.length <= 30)
+      .filter(l => !/^[\d\s\-\/¥￥\\,\.]+$/.test(l));
+    return lines[0] || '';
+  }
+
+  _openScanConfirm(dataUrl, amounts, date, memo, rawText) {
+    document.getElementById('scanConfirmThumb').src = dataUrl;
+    document.getElementById('scanConfirmDate').value = date;
+    document.getElementById('scanConfirmMemo').value = memo;
+    document.getElementById('scanRawText').textContent = rawText;
+
+    const listEl = document.getElementById('scanAmountList');
+    if (amounts.length === 0) {
+      listEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">金額が検出できませんでした</span>';
+      document.getElementById('scanConfirmAmount').value = '';
+    } else {
+      listEl.innerHTML = amounts.map((amt, i) =>
+        `<button class="scan-amount-chip${i === 0 ? ' selected' : ''}"
+                 onclick="app._selectAmountChip(this, ${amt})"
+                 data-amount="${amt}">
+           ¥${amt.toLocaleString()}
+         </button>`
+      ).join('');
+      document.getElementById('scanConfirmAmount').value = amounts[0];
+    }
+
+    document.getElementById('scanOverlay').classList.remove('open');
+    document.getElementById('scanConfirmOverlay').classList.add('open');
+  }
+
+  _selectAmountChip(el, amount) {
+    document.querySelectorAll('.scan-amount-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('scanConfirmAmount').value = amount;
+  }
+
+  applyScanResult() {
+    const amount = parseInt(document.getElementById('scanConfirmAmount').value) || 0;
+    const date = document.getElementById('scanConfirmDate').value;
+    const memo = document.getElementById('scanConfirmMemo').value;
+
+    document.getElementById('scanConfirmOverlay').classList.remove('open');
+    this.stopCamera();
+
+    this.ui.editingId = null;
+    document.getElementById('modalTitle').textContent = '取引を追加';
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('txnDate').value = date;
+    document.getElementById('txnAmount').value = amount > 0 ? amount : '';
+    document.getElementById('txnMemo').value = memo;
+    this.setType('expense');
+    this.ui.selectedCat = 'food';
+    this.renderCatButtons();
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  closeScan() {
+    this.stopCamera();
+    document.getElementById('scanOverlay').classList.remove('open');
+  }
+
+  closeScanConfirm() {
+    document.getElementById('scanConfirmOverlay').classList.remove('open');
+    this.stopCamera();
   }
 
   closeOverlay(event, overlayId) {
