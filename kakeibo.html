@@ -1288,9 +1288,16 @@ db.version(1).stores({
   settings: '&key'
 });
 
-const APP_VERSION = '20260329-002';
+const APP_VERSION = '20260329-003';
 
 const VERSION_INFO = {
+  '20260329-003': {
+    date: '2026-03-29',
+    changes: [
+      '月別ダッシュボードにカテゴリ TOP3 を追加',
+      'ヘッダーに支出の多いカテゴリトップ3を視覚的に表示'
+    ]
+  },
   '20260329-002': {
     date: '2026-03-29',
     changes: [
