@@ -593,26 +593,43 @@
     .type-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
     .type-btn {
-      padding: 10px;
+      padding: 20px;
       background: var(--bg3);
       border: 2px solid var(--border);
       color: var(--text-muted);
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 16px;
+      font-weight: 600;
       transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 100px;
+      justify-content: center;
+    }
+
+    .type-btn span:first-child {
+      font-size: 32px;
+      display: block;
+      line-height: 1;
+    }
+
+    .type-btn span:last-child {
+      font-size: 14px;
     }
 
     .type-btn.active {
       background: var(--accent-blue);
-      color: var(--bg);
+      color: white;
       border-color: var(--accent-blue);
+      box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
     }
 
     .cat-buttons {
@@ -919,8 +936,8 @@
       </div>
 
       <div class="type-buttons">
-        <button class="type-btn active" onclick="app.setType('expense')">支出</button>
-        <button class="type-btn" onclick="app.setType('income')">収入</button>
+        <button class="type-btn active" onclick="app.setType('expense')"><span>💸</span><span>支出</span></button>
+        <button class="type-btn" onclick="app.setType('income')"><span>💰</span><span>収入</span></button>
       </div>
 
       <div class="form-group">
@@ -978,7 +995,7 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-004';
+const APP_VERSION = '20260330-005';
 
 const CATEGORIES = {
   expense: [
