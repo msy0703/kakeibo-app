@@ -1,9 +1,19 @@
-const CACHE_VERSION = '20260329-001';
+const CACHE_VERSION = '20260329-002';
 const CACHE = 'kakeibo-' + CACHE_VERSION;
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE));
+  e.waitUntil(
+    caches.open(CACHE).then(cache =>
+      cache.addAll([
+        './kakeibo.html',
+        'https://unpkg.com/dexie@4/dist/dexie.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+      ]).catch(err => {
+        console.log('Cache add error:', err);
+      })
+    )
+  );
 });
 
 self.addEventListener('activate', (e) => {

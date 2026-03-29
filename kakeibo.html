@@ -11,6 +11,7 @@
   <title>家計簿</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/dexie@4/dist/dexie.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap');
 
@@ -1238,9 +1239,24 @@
 </div>
 
 <script>
-const APP_VERSION = '20260329-001';
+// ===== IndexedDB (Dexie.js) の初期化 =====
+const db = new Dexie('KakeiboDB');
+db.version(1).stores({
+  transactions: '&id, date, type, cat, amount',
+  settings: '&key'
+});
+
+const APP_VERSION = '20260329-002';
 
 const VERSION_INFO = {
+  '20260329-002': {
+    date: '2026-03-29',
+    changes: [
+      'データベースを localStorage から IndexedDB に移行',
+      'Dexie.js を導入し SQL ライクなクエリを実装',
+      '複数ユーザー対応など今後の機能拡張に対応'
+    ]
+  },
   '20260329-001': {
     date: '2026-03-29',
     changes: [
@@ -1319,13 +1335,71 @@ const CATEGORIES = {
 
 const CAT_COLORS = ['#4fc3f7', '#f48fb1', '#a5d6a7', '#ffcc80', '#ce93d8', '#ef9a9a', '#80deea'];
 
+// ===== マイグレーション関数 =====
+async function migrateFromLocalStorage() {
+  const migrated = await db.settings.get('migrated_v1');
+  if (migrated) return; // 既に移行済み
+
+  const lsTxns = localStorage.getItem('kakeiboTxns');
+  if (lsTxns) {
+    try {
+      const txns = JSON.parse(lsTxns);
+      if (txns.length > 0) await db.transactions.bulkPut(txns);
+    } catch (e) {
+      console.log('txns migration failed:', e);
+    }
+  }
+
+  const puts = [];
+  const budgets = localStorage.getItem('kakeibobudgets');
+  if (budgets) {
+    try {
+      puts.push({ key: 'budgets', value: JSON.parse(budgets) });
+    } catch (e) {
+      console.log('budgets migration failed:', e);
+    }
+  }
+
+  const customCategories = localStorage.getItem('kakeiboCustomCategories');
+  if (customCategories) {
+    try {
+      puts.push({ key: 'customCategories', value: JSON.parse(customCategories) });
+    } catch (e) {
+      console.log('customCategories migration failed:', e);
+    }
+  }
+
+  const userName = localStorage.getItem('kakeiboUserName');
+  if (userName) puts.push({ key: 'userName', value: userName });
+
+  // collapsed_YYYY-MM-DD を collapsedDates オブジェクトに統合
+  const collapsedDates = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('collapsed_')) {
+      collapsedDates[key.replace('collapsed_', '')] = true;
+    }
+  }
+  if (Object.keys(collapsedDates).length > 0) puts.push({ key: 'collapsedDates', value: collapsedDates });
+
+  puts.push({ key: 'migrated_v1', value: true });
+  if (puts.length > 0) await db.settings.bulkPut(puts);
+}
+
+async function requestPersistentStorage() {
+  if (navigator.storage && navigator.storage.persist) {
+    const granted = await navigator.storage.persist();
+    console.log('Persistent storage:', granted ? 'granted' : 'denied');
+  }
+}
+
 class KakeiboApp {
   constructor() {
     this.state = {
-      userName: localStorage.getItem('kakeiboUserName') || '本人',
-      txns: this.loadTxns(),
-      budgets: this.loadBudgets(),
-      customCategories: this.loadCustomCategories(),
+      userName: '本人',
+      txns: [],
+      budgets: {},
+      customCategories: { expense: [], income: [] },
       currentYear: new Date().getFullYear(),
       currentMonth: new Date().getMonth() + 1
     };
@@ -1340,7 +1414,28 @@ class KakeiboApp {
       currentQRLink: null
     };
 
+    this.collapsedDates = {};
+
+    this.initAsync();
+  }
+
+  async initAsync() {
+    await migrateFromLocalStorage();
+    await this.loadAllState();
+    await requestPersistentStorage();
     this.init();
+  }
+
+  async loadAllState() {
+    this.state.txns = await this.loadTxns();
+    const budgetsSetting = await this.loadBudgets();
+    this.state.budgets = budgetsSetting || {};
+    const customCatsSetting = await this.loadCustomCategories();
+    this.state.customCategories = customCatsSetting || { expense: [], income: [] };
+    const userNameSetting = await this.loadUserName();
+    this.state.userName = userNameSetting || '本人';
+    const collapsedSetting = await this.loadCollapsedDates();
+    this.collapsedDates = collapsedSetting || {};
   }
 
   init() {
@@ -1378,31 +1473,93 @@ class KakeiboApp {
     }
   }
 
-  loadTxns() {
-    const data = localStorage.getItem('kakeiboTxns');
-    return data ? JSON.parse(data) : [];
+  async loadTxns() {
+    try {
+      return await db.transactions.toArray();
+    } catch (e) {
+      console.log('loadTxns error:', e);
+      return [];
+    }
   }
 
-  saveTxns() {
-    localStorage.setItem('kakeiboTxns', JSON.stringify(this.state.txns));
+  async saveTxns() {
+    try {
+      await db.transactions.bulkPut(this.state.txns);
+    } catch (e) {
+      console.log('saveTxns error:', e);
+    }
   }
 
-  loadBudgets() {
-    const data = localStorage.getItem('kakeibobudgets');
-    return data ? JSON.parse(data) : {};
+  async loadBudgets() {
+    try {
+      const setting = await db.settings.get('budgets');
+      return setting ? setting.value : {};
+    } catch (e) {
+      console.log('loadBudgets error:', e);
+      return {};
+    }
   }
 
-  saveBudgets() {
-    localStorage.setItem('kakeibobudgets', JSON.stringify(this.state.budgets));
+  async saveBudgets() {
+    try {
+      await db.settings.put({ key: 'budgets', value: this.state.budgets });
+    } catch (e) {
+      console.log('saveBudgets error:', e);
+    }
   }
 
-  loadCustomCategories() {
-    const data = localStorage.getItem('kakeiboCustomCategories');
-    return data ? JSON.parse(data) : { expense: [], income: [] };
+  async loadCustomCategories() {
+    try {
+      const setting = await db.settings.get('customCategories');
+      return setting ? setting.value : { expense: [], income: [] };
+    } catch (e) {
+      console.log('loadCustomCategories error:', e);
+      return { expense: [], income: [] };
+    }
   }
 
-  saveCustomCategories() {
-    localStorage.setItem('kakeiboCustomCategories', JSON.stringify(this.state.customCategories));
+  async saveCustomCategories() {
+    try {
+      await db.settings.put({ key: 'customCategories', value: this.state.customCategories });
+    } catch (e) {
+      console.log('saveCustomCategories error:', e);
+    }
+  }
+
+  async loadUserName() {
+    try {
+      const setting = await db.settings.get('userName');
+      return setting ? setting.value : '本人';
+    } catch (e) {
+      console.log('loadUserName error:', e);
+      return '本人';
+    }
+  }
+
+  async saveUserName(name) {
+    try {
+      await db.settings.put({ key: 'userName', value: name });
+    } catch (e) {
+      console.log('saveUserName error:', e);
+    }
+  }
+
+  async loadCollapsedDates() {
+    try {
+      const setting = await db.settings.get('collapsedDates');
+      return setting ? setting.value : {};
+    } catch (e) {
+      console.log('loadCollapsedDates error:', e);
+      return {};
+    }
+  }
+
+  async saveCollapsedDates() {
+    try {
+      await db.settings.put({ key: 'collapsedDates', value: this.collapsedDates });
+    } catch (e) {
+      console.log('saveCollapsedDates error:', e);
+    }
   }
 
   getCategories(type) {
@@ -1464,11 +1621,13 @@ class KakeiboApp {
     const isHidden = contentDiv.style.display === 'none';
     contentDiv.style.display = isHidden ? 'block' : 'none';
     element.classList.toggle('collapsed', !isHidden);
+
     if (isHidden) {
-      localStorage.removeItem(`collapsed_${date}`);
+      delete this.collapsedDates[date];
     } else {
-      localStorage.setItem(`collapsed_${date}`, '1');
+      this.collapsedDates[date] = true;
     }
+    this.saveCollapsedDates().catch(e => console.log('Failed to save collapsed dates:', e));
   }
 
   renderList() {
@@ -1491,7 +1650,7 @@ class KakeiboApp {
         const dayIncome = dateTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
         const dayExpense = dateTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
         const dayBalance = dayIncome - dayExpense;
-        const isExpanded = !localStorage.getItem(`collapsed_${date}`);
+        const isExpanded = !this.collapsedDates[date];
         const d = new Date(date);
         const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
         const weekdayStr = d.toLocaleDateString('ja-JP', { weekday: 'short' });
@@ -1826,26 +1985,38 @@ class KakeiboApp {
     const id = 'custom_' + Date.now();
     const newCat = { id, icon: emoji, name };
     this.state.customCategories[type].push(newCat);
-    this.saveCustomCategories();
-    nameInput.value = '';
-    emojiInput.value = '';
-    this.renderMaster();
-    this.showToast('カテゴリを追加しました');
+    this.saveCustomCategories().then(() => {
+      nameInput.value = '';
+      emojiInput.value = '';
+      this.renderMaster();
+      this.showToast('カテゴリを追加しました');
+    }).catch(e => {
+      console.log('Add category error:', e);
+      this.showToast('カテゴリ追加に失敗しました');
+    });
   }
 
   deleteCat(type, id) {
     this.state.customCategories[type] = this.state.customCategories[type].filter(c => c.id !== id);
-    this.saveCustomCategories();
-    this.renderMaster();
-    this.showToast('カテゴリを削除しました');
+    this.saveCustomCategories().then(() => {
+      this.renderMaster();
+      this.showToast('カテゴリを削除しました');
+    }).catch(e => {
+      console.log('Delete category error:', e);
+      this.showToast('カテゴリ削除に失敗しました');
+    });
   }
 
   saveMasterUserName() {
     const name = document.getElementById('masterUserName').value.trim();
     if (name) {
       this.state.userName = name;
-      localStorage.setItem('kakeiboUserName', name);
-      this.showToast('保存しました');
+      this.saveUserName(name).then(() => {
+        this.showToast('保存しました');
+      }).catch(e => {
+        console.log('Save user name error:', e);
+        this.showToast('保存に失敗しました');
+      });
     }
   }
 
@@ -1920,19 +2091,27 @@ class KakeiboApp {
       });
     }
 
-    this.saveTxns();
-    this.render();
-    this.closeModal();
-    this.showToast('保存しました');
+    this.saveTxns().then(() => {
+      this.render();
+      this.closeModal();
+      this.showToast('保存しました');
+    }).catch(e => {
+      console.log('Save txn error:', e);
+      this.showToast('保存に失敗しました');
+    });
   }
 
   deleteTxn() {
     if (this.ui.editingId) {
       this.state.txns = this.state.txns.filter(t => t.id !== this.ui.editingId);
-      this.saveTxns();
-      this.render();
-      this.closeModal();
-      this.showToast('削除しました');
+      this.saveTxns().then(() => {
+        this.render();
+        this.closeModal();
+        this.showToast('削除しました');
+      }).catch(e => {
+        console.log('Delete txn error:', e);
+        this.showToast('削除に失敗しました');
+      });
     }
   }
 
@@ -1964,22 +2143,32 @@ class KakeiboApp {
   }
 
   exportData() {
-    const data = {
-      version: 1,
-      exportDate: new Date().toISOString(),
-      txns: this.state.txns,
-      budgets: this.state.budgets
-    };
+    (async () => {
+      const txns = await this.loadTxns();
+      const budgetsSetting = await db.settings.get('budgets');
+      const customCatsSetting = await db.settings.get('customCategories');
 
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `kakeibo-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.showToast('ダウンロードしました');
+      const data = {
+        version: 1,
+        exportDate: new Date().toISOString(),
+        txns,
+        budgets: budgetsSetting?.value || {},
+        customCategories: customCatsSetting?.value || { expense: [], income: [] }
+      };
+
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kakeibo-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.showToast('ダウンロードしました');
+    })().catch(e => {
+      console.log('Export error:', e);
+      this.showToast('エクスポートに失敗しました');
+    });
   }
 
   importData() {
@@ -2007,18 +2196,36 @@ class KakeiboApp {
   }
 
   confirmImport() {
-    if (this.ui.pendingImport && this.ui.pendingImport.txns) {
-      this.state.txns.push(...this.ui.pendingImport.txns);
-      if (this.ui.pendingImport.budgets) {
-        this.state.budgets = { ...this.state.budgets, ...this.ui.pendingImport.budgets };
-      }
-      this.saveTxns();
-      this.saveBudgets();
+    if (!this.ui.pendingImport?.txns) return;
+
+    Promise.all([
+      (async () => {
+        await db.transactions.bulkPut(this.ui.pendingImport.txns);
+        this.state.txns = await this.loadTxns();
+      })(),
+      (async () => {
+        if (this.ui.pendingImport.budgets) {
+          const existing = (await db.settings.get('budgets'))?.value || {};
+          const merged = { ...existing, ...this.ui.pendingImport.budgets };
+          await db.settings.put({ key: 'budgets', value: merged });
+          this.state.budgets = merged;
+        }
+      })(),
+      (async () => {
+        if (this.ui.pendingImport.customCategories) {
+          await db.settings.put({ key: 'customCategories', value: this.ui.pendingImport.customCategories });
+          this.state.customCategories = this.ui.pendingImport.customCategories;
+        }
+      })()
+    ]).then(() => {
       this.ui.pendingImport = null;
       document.getElementById('importConfirmOverlay').classList.remove('open');
       this.render();
       this.showToast('インポートしました');
-    }
+    }).catch(e => {
+      console.log('Confirm import error:', e);
+      this.showToast('インポートに失敗しました');
+    });
   }
 
   cancelImport() {
@@ -2041,10 +2248,14 @@ class KakeiboApp {
     const amount = parseInt(document.getElementById('budgetAmount').value) || 0;
     if (amount > 0) {
       this.state.budgets[this.ui.budgetEditCat] = amount;
-      this.saveBudgets();
-      this.renderBudget();
-      this.closeBudgetModal();
-      this.showToast('保存しました');
+      this.saveBudgets().then(() => {
+        this.renderBudget();
+        this.closeBudgetModal();
+        this.showToast('保存しました');
+      }).catch(e => {
+        console.log('Save budget error:', e);
+        this.showToast('保存に失敗しました');
+      });
     }
   }
 
@@ -2152,51 +2363,59 @@ class KakeiboApp {
   }
 
   showQRCode() {
-    const data = {
-      version: 1,
-      exportDate: new Date().toISOString(),
-      txns: this.state.txns,
-      budgets: this.state.budgets
-    };
+    (async () => {
+      const txns = await this.loadTxns();
+      const budgetsSetting = await db.settings.get('budgets');
 
-    const json = JSON.stringify(data);
-    const encoded = btoa(unescape(encodeURIComponent(json)));
-    const baseUrl = window.location.href.split('?')[0];
-    const qrLink = `${baseUrl}?import=${encoded}`;
+      const data = {
+        version: 1,
+        exportDate: new Date().toISOString(),
+        txns,
+        budgets: budgetsSetting?.value || {}
+      };
 
-    const qrCodeContainer = document.getElementById('qrCodeContainer');
-    const qrCodeLink = document.getElementById('qrCodeLink');
-    const qrCodeModal = document.getElementById('qrCodeModal');
-    const qrCodeModalOverlay = document.getElementById('qrCodeModalOverlay');
+      const json = JSON.stringify(data);
+      const encoded = btoa(unescape(encodeURIComponent(json)));
+      const baseUrl = window.location.href.split('?')[0];
+      const qrLink = `${baseUrl}?import=${encoded}`;
 
-    if (!qrCodeContainer || !qrCodeLink || !qrCodeModal || !qrCodeModalOverlay) {
-      console.log('QR Code modal elements not found');
-      return;
-    }
+      const qrCodeContainer = document.getElementById('qrCodeContainer');
+      const qrCodeLink = document.getElementById('qrCodeLink');
+      const qrCodeModal = document.getElementById('qrCodeModal');
+      const qrCodeModalOverlay = document.getElementById('qrCodeModalOverlay');
 
-    // Clear previous QR code
-    qrCodeContainer.innerHTML = '';
+      if (!qrCodeContainer || !qrCodeLink || !qrCodeModal || !qrCodeModalOverlay) {
+        console.log('QR Code modal elements not found');
+        return;
+      }
 
-    // Generate QR code
-    new QRCode(qrCodeContainer, {
-      text: qrLink,
-      width: 240,
-      height: 240,
-      colorDark: '#e8e8f0',
-      colorLight: '#0d0d1a',
-      correctLevel: QRCode.CorrectLevel.M
+      // Clear previous QR code
+      qrCodeContainer.innerHTML = '';
+
+      // Generate QR code
+      new QRCode(qrCodeContainer, {
+        text: qrLink,
+        width: 240,
+        height: 240,
+        colorDark: '#e8e8f0',
+        colorLight: '#0d0d1a',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // Display link
+      qrCodeLink.textContent = qrLink;
+      this.ui.currentQRLink = qrLink;
+
+      // Show modal
+      qrCodeModal.classList.add('show');
+      qrCodeModalOverlay.style.display = 'block';
+
+      // Close export/import modal
+      document.getElementById('exportImportOverlay').classList.remove('open');
+    })().catch(e => {
+      console.log('Show QR error:', e);
+      this.showToast('QRコード生成に失敗しました');
     });
-
-    // Display link
-    qrCodeLink.textContent = qrLink;
-    this.ui.currentQRLink = qrLink;
-
-    // Show modal
-    qrCodeModal.classList.add('show');
-    qrCodeModalOverlay.style.display = 'block';
-
-    // Close export/import modal
-    document.getElementById('exportImportOverlay').classList.remove('open');
   }
 
   closeQRCode(event) {
