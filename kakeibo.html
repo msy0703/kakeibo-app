@@ -169,106 +169,179 @@
     }
 
     /* ── LIST VIEW ── */
-    .list-view { padding: 12px 16px; }
+    .list-view { padding: 16px 16px; }
 
-    .date-group { margin-bottom: 16px; padding-bottom: 0; }
+    .date-group { margin-bottom: 24px; padding-bottom: 0; }
 
     .date-group-header {
-      background: var(--surface);
+      background: linear-gradient(135deg, var(--bg3) 0%, var(--surface) 100%);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 14px;
+      border-radius: 14px;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 8px;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.2s;
       user-select: none;
     }
 
     .date-group-header:active {
-      background: var(--bg3);
+      background: linear-gradient(135deg, var(--border) 0%, var(--bg3) 100%);
+      transform: scale(0.99);
+    }
+
+    .date-group-header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
     }
 
     .date-group-header-date {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-primary);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .date-group-header-weekday {
+      font-size: 11px;
+      color: var(--text-secondary);
       font-weight: 500;
     }
 
-    .date-group-header-chevron {
-      font-size: 12px;
-      color: var(--text-secondary);
+    .date-group-header-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       margin-left: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+    }
+
+    .date-group-summary-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+
+    .date-group-summary-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .date-group-summary-value {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .date-group-summary-value.income {
+      color: var(--income);
+    }
+
+    .date-group-summary-value.expense {
+      color: var(--expense);
+    }
+
+    .date-group-summary-value.balance {
+      color: var(--accent-blue);
+    }
+
+    .date-group-header-chevron {
+      font-size: 14px;
+      color: var(--text-secondary);
       transition: transform 0.2s;
+      flex-shrink: 0;
     }
 
     .date-group-header.collapsed .date-group-header-chevron {
       transform: rotate(-90deg);
     }
 
-    .date-group-header-summary {
-      font-size: 11px;
-      color: var(--text-secondary);
-      font-family: 'DM Mono', monospace;
-      margin-left: auto;
-    }
-
     .txn-item {
-      background: var(--surface);
+      background: var(--bg3);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.2s;
       -webkit-user-select: none;
     }
 
-    .txn-item:active { background: var(--bg3); }
-
-    .txn-icon {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
+    .txn-item:active {
+      background: var(--surface);
+      transform: scale(0.98);
     }
 
-    .txn-info { flex: 1; min-width: 0; }
+    .txn-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      background: rgba(79, 195, 247, 0.1);
+    }
+
+    .txn-item.expense .txn-icon {
+      background: rgba(255, 107, 107, 0.1);
+    }
+
+    .txn-item.income .txn-icon {
+      background: rgba(105, 240, 174, 0.1);
+    }
+
+    .txn-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
     .txn-memo {
       font-size: 14px;
       font-weight: 500;
+      color: var(--text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 2px;
     }
 
     .txn-cat {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 400;
     }
 
     .txn-amount {
       font-family: 'DM Mono', monospace;
       font-size: 15px;
-      font-weight: 400;
+      font-weight: 600;
       flex-shrink: 0;
+      text-align: right;
     }
 
-    .date-summary {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-bottom: 12px;
-      padding: 0 4px;
-      font-family: 'DM Mono', monospace;
+    .txn-item.expense .txn-amount {
+      color: var(--expense);
     }
+
+    .txn-item.income .txn-amount {
+      color: var(--income);
+    }
+
 
     .empty-state {
       text-align: center;
@@ -1112,9 +1185,19 @@
 </div>
 
 <script>
-const APP_VERSION = '20260330-007';
+const APP_VERSION = '20260330-008';
 
 const VERSION_INFO = {
+  '20260330-008': {
+    date: '2026-03-30',
+    changes: [
+      '明細表示をデザイン刷新：より洗練されたUI',
+      '日付ヘッダーに収支サマリーを集約表示',
+      '取引アイテムのアイコン背景を色分け',
+      'グラデーション背景と余白を最適化',
+      'タップ時のアクション表現を改善（scale&反応）'
+    ]
+  },
   '20260330-007': {
     date: '2026-03-30',
     changes: [
@@ -1312,26 +1395,43 @@ class KakeiboApp {
         const dayExpense = dateTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
         const dayBalance = dayIncome - dayExpense;
         const isExpanded = !localStorage.getItem(`collapsed_${date}`);
+        const d = new Date(date);
+        const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+        const weekdayStr = d.toLocaleDateString('ja-JP', { weekday: 'short' });
 
         html += `<div class="date-group">
           <div class="date-group-header ${!isExpanded ? 'collapsed' : ''}" onclick="app.toggleDateGroup(this, '${date}')">
-            <div class="date-group-header-date">
-              ${new Date(date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' })}
+            <div class="date-group-header-info">
+              <div class="date-group-header-date">${dateStr}日</div>
+              <div class="date-group-header-weekday">（${weekdayStr}）</div>
+            </div>
+            <div class="date-group-header-summary">
+              <div class="date-group-summary-item">
+                <div class="date-group-summary-label">収入</div>
+                <div class="date-group-summary-value income">${dayIncome > 0 ? '+' + this.formatYen(dayIncome) : '¥0'}</div>
+              </div>
+              <div class="date-group-summary-item">
+                <div class="date-group-summary-label">支出</div>
+                <div class="date-group-summary-value expense">${dayExpense > 0 ? '-' + this.formatYen(dayExpense) : '¥0'}</div>
+              </div>
+              <div class="date-group-summary-item">
+                <div class="date-group-summary-label">残高</div>
+                <div class="date-group-summary-value balance">${this.formatYen(dayBalance)}</div>
+              </div>
             </div>
             <div class="date-group-header-chevron">▼</div>
           </div>
-          <div style="display:${isExpanded ? 'block' : 'none'}">
-            <div class="date-summary">残高: ${this.formatYen(dayBalance)}</div>`;
+          <div style="display:${isExpanded ? 'block' : 'none'}">`;
 
         dateTxns.forEach(t => {
           const cat = [...this.getCategories('income'), ...this.getCategories('expense')].find(c => c.id === t.cat) || { icon: '📦', name: '?' };
-          html += `<div class="txn-item" onclick="app.openEdit('${t.id}')">
+          html += `<div class="txn-item ${t.type}" onclick="app.openEdit('${t.id}')">
             <div class="txn-icon">${cat.icon}</div>
             <div class="txn-info">
-              <div class="txn-memo">${t.memo || 'メモなし'}</div>
+              <div class="txn-memo">${t.memo || '（メモなし）'}</div>
               <div class="txn-cat">${cat.name}</div>
             </div>
-            <div class="txn-amount ${t.type === 'income' ? 'income' : 'expense'}">
+            <div class="txn-amount">
               ${t.type === 'income' ? '+' : '-'}${this.formatYen(t.amount)}
             </div>
           </div>`;
