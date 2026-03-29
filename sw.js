@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260330-009';
+const CACHE_VERSION = '20260330-010';
 const CACHE = 'kakeibo-' + CACHE_VERSION;
 
 self.addEventListener('install', (e) => {
