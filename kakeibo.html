@@ -1828,14 +1828,6 @@ class KakeiboApp {
     }
   }
 
-  async saveTxns() {
-    try {
-      await db.transactions.bulkPut(this.state.txns);
-    } catch (e) {
-      console.log('saveTxns error:', e);
-    }
-  }
-
   async loadBudgets() {
     try {
       const setting = await db.settings.get('budgets');
@@ -2432,59 +2424,74 @@ class KakeiboApp {
     document.getElementById('modalOverlay').classList.remove('open');
   }
 
-  saveTxn() {
+  async saveTxn() {
     const date = document.getElementById('txnDate').value;
-    const amount = parseInt(document.getElementById('txnAmount').value) || 0;
+    const amount = Number(document.getElementById('txnAmount').value);
     const memo = document.getElementById('txnMemo').value;
-
-    if (!date || amount <= 0) {
-      this.showToast('日付と金額を入力してください');
+    if (!date || !Number.isSafeInteger(amount) || amount <= 0) {
+      this.showToast('日付と正の整数の金額を入力してください');
       return;
     }
 
-    if (this.ui.editingId) {
-      const txn = this.state.txns.find(t => t.id === this.ui.editingId);
-      if (txn) {
-        txn.date = date;
-        txn.amount = amount;
-        txn.memo = memo;
-        txn.type = this.ui.selectedType;
-        txn.cat = this.ui.selectedCat;
-      }
-    } else {
-      this.state.txns.push({
-        id: Date.now().toString(),
-        date,
-        type: this.ui.selectedType,
-        cat: this.ui.selectedCat,
-        amount,
-        memo
-      });
+    const existing = this.ui.editingId && this.state.txns.find(t => t.id === this.ui.editingId);
+    if (this.ui.editingId && !existing) {
+      this.showToast('取引が見つかりません');
+      return;
     }
-
-    this.saveTxns().then(() => {
+    if (this.txnSaving) return;
+    this.txnSaving = true;
+    let txn;
+    try {
+      const id = existing ? existing.id : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      txn = { ...(existing || {}), id, date, amount, memo,
+        type: this.ui.selectedType, cat: this.ui.selectedCat };
+      await db.transactions.put(txn);
+    } catch (e) {
+      console.log('Save txn error:', e);
+      this.showToast('保存に失敗しました');
+      this.txnSaving = false;
+      return;
+    }
+    // A retry after a display failure must update the committed record.
+    this.ui.editingId = txn.id;
+    this.state.txns = existing
+      ? this.state.txns.map(t => t.id === txn.id ? txn : t)
+      : [...this.state.txns, txn];
+    try {
       this.render();
       this.closeModal();
       this.showToast('保存しました');
-    }).catch(e => {
-      console.log('Save txn error:', e);
-      this.showToast('保存に失敗しました');
-    });
-  }
-
-  deleteTxn() {
-    if (this.ui.editingId) {
-      this.state.txns = this.state.txns.filter(t => t.id !== this.ui.editingId);
-      this.saveTxns().then(() => {
-        this.render();
-        this.closeModal();
-        this.showToast('削除しました');
-      }).catch(e => {
-        console.log('Delete txn error:', e);
-        this.showToast('削除に失敗しました');
-      });
+    } catch (e) {
+      console.log('Saved txn display error:', e);
+      this.showToast('保存しましたが画面の更新に失敗しました');
+    } finally {
+      this.txnSaving = false;
     }
   }
+
+  async deleteTxn() {
+    const id = this.ui.editingId;
+    if (!id || !this.state.txns.some(t => t.id === id)) return;
+    if (!window.confirm('この取引を削除しますか？')) return;
+    try {
+      await db.transactions.delete(id);
+    } catch (e) {
+      console.log('Delete txn error:', e);
+      this.showToast('削除に失敗しました');
+      return;
+    }
+    this.state.txns = this.state.txns.filter(t => t.id !== id);
+    this.ui.editingId = null;
+    try {
+      this.closeModal();
+      this.render();
+      this.showToast('削除しました');
+    } catch (e) {
+      console.log('Deleted txn display error:', e);
+      this.showToast('削除しましたが画面の更新に失敗しました');
+    }
+  }
+
 
   setType(type) {
     this.ui.selectedType = type;
@@ -2515,7 +2522,7 @@ class KakeiboApp {
 
   exportData() {
     (async () => {
-      const txns = await this.loadTxns();
+      const txns = await db.transactions.toArray();
       const budgetsSetting = await db.settings.get('budgets');
       const customCatsSetting = await db.settings.get('customCategories');
 
@@ -2566,37 +2573,44 @@ class KakeiboApp {
     reader.readAsText(file);
   }
 
-  confirmImport() {
-    if (!this.ui.pendingImport?.txns) return;
-
-    Promise.all([
-      (async () => {
-        await db.transactions.bulkPut(this.ui.pendingImport.txns);
-        this.state.txns = await this.loadTxns();
-      })(),
-      (async () => {
-        if (this.ui.pendingImport.budgets) {
+  async confirmImport() {
+    const data = this.ui.pendingImport;
+    if (!data?.txns || this.importing) return;
+    this.importing = true;
+    let merged, importedTxns;
+    try {
+      await db.transaction('rw', db.transactions, db.settings, async () => {
+        await db.transactions.bulkPut(data.txns);
+        if (data.budgets) {
           const existing = (await db.settings.get('budgets'))?.value || {};
-          const merged = { ...existing, ...this.ui.pendingImport.budgets };
+          merged = { ...existing, ...data.budgets };
           await db.settings.put({ key: 'budgets', value: merged });
-          this.state.budgets = merged;
         }
-      })(),
-      (async () => {
-        if (this.ui.pendingImport.customCategories) {
-          await db.settings.put({ key: 'customCategories', value: this.ui.pendingImport.customCategories });
-          this.state.customCategories = this.ui.pendingImport.customCategories;
+        if (data.customCategories) {
+          await db.settings.put({ key: 'customCategories', value: data.customCategories });
         }
-      })()
-    ]).then(() => {
-      this.ui.pendingImport = null;
+        importedTxns = await db.transactions.toArray();
+      });
+    } catch (e) {
+      console.log('Confirm import error:', e);
+      this.showToast('インポートに失敗しました');
+      this.importing = false;
+      return;
+    }
+    this.ui.pendingImport = null;
+    this.state.txns = importedTxns;
+    if (data.budgets) this.state.budgets = merged;
+    if (data.customCategories) this.state.customCategories = data.customCategories;
+    try {
       document.getElementById('importConfirmOverlay').classList.remove('open');
       this.render();
       this.showToast('インポートしました');
-    }).catch(e => {
-      console.log('Confirm import error:', e);
-      this.showToast('インポートに失敗しました');
-    });
+    } catch (e) {
+      console.log('Imported data display error:', e);
+      this.showToast('インポートしましたが画面の更新に失敗しました');
+    } finally {
+      this.importing = false;
+    }
   }
 
   cancelImport() {
